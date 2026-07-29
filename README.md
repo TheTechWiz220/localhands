@@ -29,3 +29,7 @@ https://localhands-thetechwiz220s-projects.vercel.app
 2. Copy `.env.example` to `.env.local` and add Supabase keys
 3. Run SQL in `supabase/schema.sql`
 4. `npm install && npm run dev`
+
+---
+
+*Git → Vercel auto-deploy verified*
