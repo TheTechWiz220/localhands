@@ -67,7 +67,6 @@ export default function ApplyPage() {
 
       setUserId(user.id);
 
-      // Prefill if profile already exists
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, location_area, bio, role, verification_status")
@@ -79,7 +78,6 @@ export default function ApplyPage() {
         if (profile.location_area) setLocation(profile.location_area);
         if (profile.bio) setBio(profile.bio);
 
-        // Already a pending or verified worker
         if (
           profile.role === "worker" &&
           (profile.verification_status === "pending" ||
@@ -113,7 +111,6 @@ export default function ApplyPage() {
     setLoading(true);
     setError("");
 
-    // Upsert profile as worker + pending
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: userId,
       full_name: fullName.trim(),
@@ -131,7 +128,6 @@ export default function ApplyPage() {
       return;
     }
 
-    // Replace skills
     await supabase.from("worker_skills").delete().eq("worker_id", userId);
 
     const skillRows = selectedSkills.map((skill) => ({
@@ -171,12 +167,12 @@ export default function ApplyPage() {
         <div>
           <h1 className="text-2xl font-bold">Sign in to apply</h1>
           <p className="text-gray-500 mt-2">
-            Create an account with your phone number first, then complete your
-            worker application.
+            Create an account with your email first, then complete your worker
+            application.
           </p>
         </div>
         <Link href="/auth">
-          <Button size="lg">Sign in with Phone</Button>
+          <Button size="lg">Sign in with Email</Button>
         </Link>
       </div>
     );
