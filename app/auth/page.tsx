@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Hand, Mail, CheckCircle2, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 
-export default function AuthPage() {
+function AuthForm() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"worker" | "client">("client");
   const [loading, setLoading] = useState(false);
@@ -173,5 +173,20 @@ export default function AuthPage() {
         Free email sign-in. No password needed — just click the link in your email.
       </p>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-md mx-auto px-4 py-20 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600 mb-4" />
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      }
+    >
+      <AuthForm />
+    </Suspense>
   );
 }
