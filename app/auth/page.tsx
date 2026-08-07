@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Hand, Mail, CheckCircle2, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useSearchParams } from "next/navigation";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -13,39 +14,41 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
 
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
-  // If user already has a session (e.g. returned from magic link), redirect
   useEffect(() => {
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      setError(
+        urlError === "missing_code"
+          ? "Sign-in link was incomplete. Please request a new one."
+          : decodeURIComponent(urlError)
+      );
+    }
+
     async function check() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (user) {
-        const savedRole =
-          typeof window !== "undefined"
-            ? localStorage.getItem("lh_role") || "client"
-            : "client";
+        const savedRole = localStorage.getItem("lh_role") || "client";
         window.location.href = savedRole === "worker" ? "/apply" : "/directory";
         return;
       }
       setCheckingSession(false);
     }
     check();
-  }, []);
+  }, [searchParams]);
 
   async function sendMagicLink() {
     setLoading(true);
     setError("");
 
-    // Remember role for after redirect
     localStorage.setItem("lh_role", role);
 
-    const redirectTo =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/auth/callback`
-        : "https://localhands-thetechwiz220s-projects.vercel.app/auth/callback";
+    const redirectTo = `${window.location.origin}/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
@@ -85,7 +88,7 @@ export default function AuthPage() {
             We sent a sign-in link to <strong>{email}</strong>.
           </p>
           <p className="text-sm text-gray-400 mt-2">
-            Click the link in the email to sign in. You can close this tab.
+            Click the link in the email to sign in. Use the same browser if possible.
           </p>
           <p className="text-xs text-gray-400 mt-4">Also check spam / junk.</p>
         </div>

@@ -7,6 +7,9 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/directory";
 
+  // Build redirect response first so we can attach cookies to IT
+  let response = NextResponse.redirect(`${origin}${next}`);
+
   if (code) {
     const cookieStore = await cookies();
 
@@ -19,13 +22,10 @@ export async function GET(request: Request) {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // ignore in edge cases
-            }
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Critical: set on the redirect response, not only cookieStore
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
@@ -34,12 +34,16 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Prefer role from cookie/localStorage is client-side; default to directory
-      // Workers can go to /apply after from profile
-      return NextResponse.redirect(`${origin}${next}`);
+      return response;
     }
+
+    // Exchange failed
+    response = NextResponse.redirect(
+      `${origin}/auth?error=${encodeURIComponent(error.message)}`
+    );
+    return response;
   }
 
-  // Auth failed — send back to auth with error hint
-  return NextResponse.redirect(`${origin}/auth?error=auth_callback_failed`);
+  // No code in URL — likely wrong redirect or expired link
+  return NextResponse.redirect(`${origin}/auth?error=missing_code`);
 }
