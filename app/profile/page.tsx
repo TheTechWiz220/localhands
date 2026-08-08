@@ -1,19 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { User, LogOut, Loader2 } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { User, LogOut, Loader2, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
+const MAX_FILES = 6;
+const MAX_SIZE_MB = 5;
+
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [proofUrls, setProofUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
+
+  async function loadProof(uid: string) {
+    const { data } = await supabase
+      .from("proof_media")
+      .select("media_url")
+      .eq("worker_id", uid)
+      .order("created_at", { ascending: false });
+
+    setProofUrls((data || []).map((r: any) => r.media_url));
+  }
 
   useEffect(() => {
     async function load() {
@@ -27,6 +45,7 @@ export default function ProfilePage() {
       }
 
       setEmail(user.email || null);
+      setUserId(user.id);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -40,6 +59,7 @@ export default function ProfilePage() {
         setStatus(profile.verification_status);
       }
 
+      await loadProof(user.id);
       setLoading(false);
     }
 
@@ -49,6 +69,71 @@ export default function ProfilePage() {
   async function signOut() {
     await supabase.auth.signOut();
     window.location.href = "/";
+  }
+
+  async function onFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!userId) return;
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
+
+    setUploading(true);
+    setUploadError("");
+
+    try {
+      let count = proofUrls.length;
+
+      for (const file of picked) {
+        if (!file.type.startsWith("image/")) {
+          setUploadError("Only images allowed (JPG, PNG, WebP).");
+          continue;
+        }
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+          setUploadError(`Each image must be under ${MAX_SIZE_MB}MB.`);
+          continue;
+        }
+        if (count >= MAX_FILES) {
+          setUploadError(`Maximum ${MAX_FILES} proof photos.`);
+          break;
+        }
+
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${userId}/${Date.now()}-${count}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("proof-media")
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type,
+          });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("proof-media").getPublicUrl(path);
+
+        const { error: insertError } = await supabase.from("proof_media").insert({
+          worker_id: userId,
+          media_url: publicUrl,
+          media_type: "image",
+        });
+
+        if (insertError) throw new Error(insertError.message);
+        count += 1;
+      }
+
+      await loadProof(userId);
+    } catch (err: any) {
+      setUploadError(
+        err?.message?.includes("Bucket") || err?.message?.includes("not found")
+          ? "Create a public Storage bucket named proof-media in Supabase."
+          : err?.message || "Upload failed"
+      );
+    }
+
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   if (loading) {
@@ -122,6 +207,66 @@ export default function ProfilePage() {
           <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-3">
             Your worker application is pending review.
           </p>
+        )}
+
+        {role === "worker" && (
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">Proof of work</h3>
+              <span className="text-xs text-gray-400">
+                {proofUrls.length}/{MAX_FILES}
+              </span>
+            </div>
+
+            {proofUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {proofUrls.map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`Proof ${i + 1}`}
+                    className="aspect-square object-cover rounded-lg border"
+                  />
+                ))}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={onFilesSelected}
+            />
+
+            {proofUrls.length < MAX_FILES && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Add proof photos
+                  </>
+                )}
+              </Button>
+            )}
+
+            {uploadError && (
+              <p className="text-sm text-red-600">{uploadError}</p>
+            )}
+          </div>
         )}
 
         <Button variant="outline" className="w-full" onClick={signOut}>

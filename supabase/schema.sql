@@ -75,6 +75,10 @@ create policy "Users can insert own profile" on public.profiles for insert with 
 create policy "Skills are viewable by everyone" on public.worker_skills for select using (true);
 create policy "Workers can manage own skills" on public.worker_skills for all using (auth.uid() = worker_id);
 create policy "Proof media viewable by everyone" on public.proof_media for select using (true);
+drop policy if exists "Workers insert own proof_media" on public.proof_media;
+create policy "Workers insert own proof_media" on public.proof_media for insert to authenticated with check (auth.uid() = worker_id);
+drop policy if exists "Workers delete own proof_media" on public.proof_media;
+create policy "Workers delete own proof_media" on public.proof_media for delete to authenticated using (auth.uid() = worker_id);
 create policy "Job requests viewable by participants" on public.job_requests for select using (auth.uid() = client_id or auth.uid() = worker_id);
 create policy "Clients can create jobs" on public.job_requests for insert with check (auth.uid() = client_id);
 create or replace function public.handle_new_user()

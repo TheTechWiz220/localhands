@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import { Hand, CheckCircle2, Loader2 } from "lucide-react";
+import { Hand, CheckCircle2, Loader2, ImagePlus, X } from "lucide-react";
 import Link from "next/link";
 
 const SKILLS = [
@@ -37,6 +37,9 @@ const AREAS = [
   "Other",
 ];
 
+const MAX_FILES = 6;
+const MAX_SIZE_MB = 5;
+
 type Step = "form" | "success" | "need_auth";
 
 export default function ApplyPage() {
@@ -50,6 +53,9 @@ export default function ApplyPage() {
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
 
@@ -101,6 +107,80 @@ export default function ApplyPage() {
     );
   }
 
+  function onFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
+
+    const next: File[] = [...files];
+    for (const f of picked) {
+      if (!f.type.startsWith("image/")) {
+        setError("Only images are allowed for now (JPG, PNG, WebP).");
+        continue;
+      }
+      if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+        setError(`Each image must be under ${MAX_SIZE_MB}MB.`);
+        continue;
+      }
+      if (next.length >= MAX_FILES) {
+        setError(`You can upload up to ${MAX_FILES} photos.`);
+        break;
+      }
+      next.push(f);
+    }
+
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeFile(index: number) {
+    const next = files.filter((_, i) => i !== index);
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
+  }
+
+  async function uploadProofMedia(workerId: string) {
+    const uploaded: { media_url: string; media_type: string }[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${workerId}/${Date.now()}-${i}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("proof-media")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("proof-media").getPublicUrl(path);
+
+      uploaded.push({ media_url: publicUrl, media_type: "image" });
+    }
+
+    if (uploaded.length > 0) {
+      const rows = uploaded.map((u) => ({
+        worker_id: workerId,
+        media_url: u.media_url,
+        media_type: u.media_type,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("proof_media")
+        .insert(rows);
+
+      if (insertError) throw new Error(insertError.message);
+    }
+  }
+
   async function submitApplication() {
     if (!userId) return;
     if (!fullName.trim() || !location || selectedSkills.length === 0) {
@@ -139,13 +219,27 @@ export default function ApplyPage() {
       .from("worker_skills")
       .insert(skillRows);
 
-    setLoading(false);
-
     if (skillsError) {
+      setLoading(false);
       setError(skillsError.message);
       return;
     }
 
+    try {
+      if (files.length > 0) {
+        await uploadProofMedia(userId);
+      }
+    } catch (e: any) {
+      setLoading(false);
+      setError(
+        e?.message?.includes("Bucket") || e?.message?.includes("not found")
+          ? "Storage bucket missing. Create a public bucket named proof-media in Supabase Storage."
+          : e?.message || "Failed to upload proof photos."
+      );
+      return;
+    }
+
+    setLoading(false);
     setStep("success");
   }
 
@@ -187,8 +281,8 @@ export default function ApplyPage() {
         <div>
           <h1 className="text-2xl font-bold">Application submitted</h1>
           <p className="text-gray-500 mt-2">
-            Your profile is under review. Once an admin verifies you, you will
-            appear in the directory and can receive job requests.
+            Your profile is under review. You can still add more proof photos
+            from your Profile page.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -208,7 +302,7 @@ export default function ApplyPage() {
       <div>
         <h1 className="text-2xl font-bold">Become a LocalHands Worker</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Fill in your details. An admin will review and verify your profile.
+          Fill in your details and add photos of completed work for verification.
         </p>
       </div>
 
@@ -279,12 +373,62 @@ export default function ApplyPage() {
             About you (optional)
           </label>
           <textarea
-            rows={4}
-            placeholder="Years of experience, what you are good at, areas you cover..."
+            rows={3}
+            placeholder="Years of experience, what you are good at..."
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600 resize-none"
           />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium mb-1.5 block">
+            Proof of work (photos)
+          </label>
+          <p className="text-xs text-gray-500 mb-2">
+            Upload photos of jobs you have completed. Helps admins verify you
+            faster. Up to {MAX_FILES} images, max {MAX_SIZE_MB}MB each.
+          </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={onFilesSelected}
+          />
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full border-2 border-dashed rounded-xl py-6 flex flex-col items-center gap-2 text-gray-500 hover:border-green-500 hover:text-green-700 transition-colors"
+          >
+            <ImagePlus className="h-8 w-8" />
+            <span className="text-sm font-medium">Tap to add photos</span>
+          </button>
+
+          {previews.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {previews.map((src, i) => (
+                <div key={i} className="relative aspect-square">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={`Proof ${i + 1}`}
+                    className="w-full h-full object-cover rounded-lg border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
