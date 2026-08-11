@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [loadingList, setLoadingList] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const supabase = createClient();
 
@@ -106,20 +107,33 @@ export default function AdminPage() {
   async function setStatus(workerId: string, status: "verified" | "rejected") {
     setActingId(workerId);
     setMessage("");
+    setErrorMsg("");
 
-    const { error } = await supabase
+    // Select after update to confirm RLS allowed the change
+    const { data, error } = await supabase
       .from("profiles")
       .update({
         verification_status: status,
         is_verified: status === "verified",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", workerId);
+      .eq("id", workerId)
+      .select("id, verification_status")
+      .maybeSingle();
 
     setActingId(null);
 
     if (error) {
-      setMessage(error.message);
+      setErrorMsg(error.message);
+      return;
+    }
+
+    // RLS often returns no error but also no row when blocked
+    if (!data || data.verification_status !== status) {
+      setErrorMsg(
+        "Update blocked by database security (RLS). Run the admin update policy in Supabase SQL Editor, then try again."
+      );
+      await loadPending();
       return;
     }
 
@@ -158,11 +172,6 @@ export default function AdminPage() {
             <Button variant="outline">Go Home</Button>
           </Link>
         </div>
-        <p className="text-xs text-gray-400 max-w-xs mx-auto">
-          In Supabase Table Editor → profiles, set your row&apos;s{" "}
-          <code className="bg-gray-100 px-1 rounded">role</code> to{" "}
-          <code className="bg-gray-100 px-1 rounded">admin</code>.
-        </p>
       </div>
     );
   }
@@ -181,6 +190,9 @@ export default function AdminPage() {
         <p className="text-sm text-green-700 bg-green-50 rounded-lg p-3">
           {message}
         </p>
+      )}
+      {errorMsg && (
+        <p className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{errorMsg}</p>
       )}
 
       <div className="rounded-xl border bg-white p-4">
