@@ -93,7 +93,8 @@ export default function ProfilePage() {
       }
 
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `avatars/${userId}/profile.${ext}`;
+      // Path MUST start with userId for storage RLS: foldername(name)[1] = auth.uid()
+      const path = `${userId}/avatar.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("proof-media")
@@ -109,7 +110,6 @@ export default function ProfilePage() {
         data: { publicUrl },
       } = supabase.storage.from("proof-media").getPublicUrl(path);
 
-      // Bust cache so new photo shows immediately
       const urlWithBust = `${publicUrl}?t=${Date.now()}`;
 
       const { error: updateError } = await supabase
