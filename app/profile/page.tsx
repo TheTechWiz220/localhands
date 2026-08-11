@@ -92,19 +92,21 @@ export default function ProfilePage() {
         throw new Error(`Image must be under ${MAX_SIZE_MB}MB.`);
       }
 
-      const ext = file.name.split(".").pop() || "jpg";
-      // Path MUST start with userId for storage RLS: foldername(name)[1] = auth.uid()
-      const path = `${userId}/avatar.${ext}`;
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      // Must start with auth user id for storage policies
+      const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from("proof-media")
         .upload(path, file, {
           cacheControl: "3600",
-          upsert: true,
+          upsert: false,
           contentType: file.type,
         });
 
-      if (uploadError) throw new Error(uploadError.message);
+      if (storageError) {
+        throw new Error(`Storage: ${storageError.message}`);
+      }
 
       const {
         data: { publicUrl },
@@ -118,17 +120,17 @@ export default function ProfilePage() {
           avatar_url: urlWithBust,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", userId);
+        .eq("id", userId)
+        .select("id")
+        .maybeSingle();
 
-      if (updateError) throw new Error(updateError.message);
+      if (updateError) {
+        throw new Error(`Profile: ${updateError.message}`);
+      }
 
       setAvatarUrl(urlWithBust);
     } catch (err: any) {
-      setAvatarError(
-        err?.message?.includes("Bucket") || err?.message?.includes("not found")
-          ? "Storage bucket missing. Use the public proof-media bucket."
-          : err?.message || "Avatar upload failed"
-      );
+      setAvatarError(err?.message || "Avatar upload failed");
     }
 
     setAvatarUploading(false);
@@ -189,11 +191,7 @@ export default function ProfilePage() {
 
       await loadProof(userId);
     } catch (err: any) {
-      setUploadError(
-        err?.message?.includes("Bucket") || err?.message?.includes("not found")
-          ? "Create a public Storage bucket named proof-media in Supabase."
-          : err?.message || "Upload failed"
-      );
+      setUploadError(err?.message || "Upload failed");
     }
 
     setUploading(false);
