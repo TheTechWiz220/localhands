@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { User, LogOut, Loader2, ImagePlus, X } from "lucide-react";
+import { User, LogOut, Loader2, ImagePlus, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -14,12 +14,16 @@ export default function ProfilePage() {
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [proofUrls, setProofUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [avatarError, setAvatarError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
 
@@ -49,7 +53,7 @@ export default function ProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, role, verification_status")
+        .select("full_name, role, verification_status, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -57,6 +61,7 @@ export default function ProfilePage() {
         setFullName(profile.full_name);
         setRole(profile.role);
         setStatus(profile.verification_status);
+        setAvatarUrl(profile.avatar_url || null);
       }
 
       await loadProof(user.id);
@@ -69,6 +74,65 @@ export default function ProfilePage() {
   async function signOut() {
     await supabase.auth.signOut();
     window.location.href = "/";
+  }
+
+  async function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!userId) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError("");
+    setAvatarUploading(true);
+
+    try {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Only images allowed (JPG, PNG, WebP).");
+      }
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        throw new Error(`Image must be under ${MAX_SIZE_MB}MB.`);
+      }
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `avatars/${userId}/profile.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("proof-media")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("proof-media").getPublicUrl(path);
+
+      // Bust cache so new photo shows immediately
+      const urlWithBust = `${publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          avatar_url: urlWithBust,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (updateError) throw new Error(updateError.message);
+
+      setAvatarUrl(urlWithBust);
+    } catch (err: any) {
+      setAvatarError(
+        err?.message?.includes("Bucket") || err?.message?.includes("not found")
+          ? "Storage bucket missing. Use the public proof-media bucket."
+          : err?.message || "Avatar upload failed"
+      );
+    }
+
+    setAvatarUploading(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
   }
 
   async function onFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -177,14 +241,57 @@ export default function ProfilePage() {
 
       <div className="rounded-xl border bg-white p-6 space-y-4">
         <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-xl">
-            {(fullName || email)[0].toUpperCase()}
+          <div className="relative">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                className="h-16 w-16 rounded-full object-cover border"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-xl">
+                {(fullName || email)[0].toUpperCase()}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-green-600 text-white flex items-center justify-center shadow border-2 border-white"
+              title="Change photo"
+            >
+              {avatarUploading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Camera className="h-3.5 w-3.5" />
+              )}
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onAvatarSelected}
+            />
           </div>
           <div>
             <p className="font-semibold">{fullName || "No name set"}</p>
             <p className="text-sm text-gray-500">{email}</p>
+            <button
+              type="button"
+              className="text-xs text-green-700 mt-1 hover:underline"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+            >
+              {avatarUrl ? "Change photo" : "Add profile photo"}
+            </button>
           </div>
         </div>
+
+        {avatarError && (
+          <p className="text-sm text-red-600">{avatarError}</p>
+        )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-gray-50 rounded-lg p-3">
@@ -197,7 +304,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {role !== "worker" && (
+        {role !== "worker" && role !== "admin" && (
           <Link href="/apply">
             <Button className="w-full">Apply as Worker</Button>
           </Link>

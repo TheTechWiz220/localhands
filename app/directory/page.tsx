@@ -5,14 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { workers as fallbackWorkers } from "@/lib/data";
 
 export default async function DirectoryPage() {
-  let workers = fallbackWorkers;
+  let workers: any[] = fallbackWorkers;
 
   try {
     const supabase = await createClient();
     const { data } = await supabase
       .from("profiles")
       .select(
-        "id, full_name, location_area, bio, verification_status, availability"
+        "id, full_name, location_area, bio, verification_status, availability, avatar_url"
       )
       .eq("role", "worker")
       .eq("verification_status", "verified")
@@ -31,6 +31,7 @@ export default async function DirectoryPage() {
             full_name: p.full_name || "Worker",
             location_area: p.location_area || "Gambia",
             bio: p.bio || "",
+            avatar_url: p.avatar_url || null,
             skills: (skills || []).map((s: any) => s.skill),
             rating: 0,
             jobs_done: 0,
@@ -70,9 +71,18 @@ export default async function DirectoryPage() {
           <Link key={w.id} href={`/worker/${w.id}`}>
             <div className="rounded-xl border bg-white p-4 hover:shadow-md transition-shadow">
               <div className="flex gap-3">
-                <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg">
-                  {w.full_name[0]}
-                </div>
+                {w.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={w.avatar_url}
+                    alt={w.full_name}
+                    className="h-14 w-14 rounded-full object-cover border"
+                  />
+                ) : (
+                  <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg">
+                    {w.full_name[0]}
+                  </div>
+                )}
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold">{w.full_name}</h3>

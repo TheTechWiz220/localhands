@@ -19,7 +19,7 @@ export default async function WorkerPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, location_area, bio, verification_status, availability"
+      "id, full_name, location_area, bio, verification_status, availability, avatar_url"
     )
     .eq("id", id)
     .maybeSingle();
@@ -41,6 +41,7 @@ export default async function WorkerPage({
       full_name: profile.full_name || "Worker",
       location_area: profile.location_area || "Gambia",
       bio: profile.bio || "No bio yet.",
+      avatar_url: profile.avatar_url || null,
       skills: (skills || []).map((s: any) => s.skill),
       rating: 0,
       jobs_done: 0,
@@ -56,9 +57,18 @@ export default async function WorkerPage({
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       <div className="flex gap-4 items-start">
-        <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl">
-          {worker.full_name[0]}
-        </div>
+        {worker.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={worker.avatar_url}
+            alt={worker.full_name}
+            className="h-20 w-20 rounded-full object-cover border"
+          />
+        ) : (
+          <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl">
+            {worker.full_name[0]}
+          </div>
+        )}
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold">{worker.full_name}</h1>
