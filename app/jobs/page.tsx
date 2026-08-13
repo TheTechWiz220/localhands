@@ -158,9 +158,8 @@ export default function JobsPage() {
   }
 
   async function submitRating(job: Job) {
-    if (!userId || !job.worker_id && !job.client_id) return;
+    if (!userId) return;
 
-    // Client rates worker; worker can rate client
     const toUserId = userId === job.client_id ? job.worker_id : job.client_id;
     if (!toUserId) {
       setError("Missing other party for rating.");
@@ -169,6 +168,7 @@ export default function JobsPage() {
 
     setSubmittingRating(true);
     setError("");
+    setRatingJobId(job.id);
 
     const { error: insertError } = await supabase.from("ratings").insert({
       job_id: job.id,
@@ -192,6 +192,7 @@ export default function JobsPage() {
 
     setMessage("Thanks for your rating!");
     setRatingJobId(null);
+    setComment("");
     if (userId) await loadJobs(userId);
   }
 
@@ -278,10 +279,6 @@ export default function JobsPage() {
           {jobs.map((job) => {
             const isWorker = job.worker_id === userId;
             const isClient = job.client_id === userId;
-            const showRatingForm =
-              job.status === "completed" &&
-              !job.myRating &&
-              (ratingJobId === job.id || ratingJobId === null);
 
             return (
               <div key={job.id} className="rounded-xl border bg-white p-4 space-y-3">
@@ -361,21 +358,23 @@ export default function JobsPage() {
                   </Button>
                 )}
 
-                {job.status === "completed" && job.myRating && (
+                {job.status === "completed" && job.myRating != null && (
                   <div className="flex items-center gap-1 text-sm text-amber-600">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <Star
                         key={n}
-                        className={`h-4 w-4 ${
-                          n <= job.myRating! ? "fill-current" : "text-gray-300"
-                        }`}
+                        className={
+                          n <= (job.myRating || 0)
+                            ? "h-4 w-4 fill-current"
+                            : "h-4 w-4 text-gray-300"
+                        }
                       />
                     ))}
                     <span className="text-gray-500 ml-1">You rated</span>
                   </div>
                 )}
 
-                {job.status === "completed" && !job.myRating && (
+                {job.status === "completed" && job.myRating == null && (
                   <div className="border-t pt-3 space-y-3">
                     <p className="text-sm font-medium">
                       Rate {isClient ? job.worker_name : job.client_name}
@@ -385,14 +384,18 @@ export default function JobsPage() {
                         <button
                           key={n}
                           type="button"
-                          onClick={() => setStars(n)}
+                          onClick={() => {
+                            setRatingJobId(job.id);
+                            setStars(n);
+                          }}
                           className="p-1"
                         >
                           <Star
-                            className={`h-7 w-7 ${\n                              n <= stars
-                                ? "fill-amber-500 text-amber-500"
-                                : "text-gray-300"
-                            }`}
+                            className={
+                              n <= (ratingJobId === job.id ? stars : 5)
+                                ? "h-7 w-7 fill-amber-500 text-amber-500"
+                                : "h-7 w-7 text-gray-300"
+                            }
                           />
                         </button>
                       ))}
@@ -412,10 +415,7 @@ export default function JobsPage() {
                       size="sm"
                       className="w-full"
                       disabled={submittingRating}
-                      onClick={() => {
-                        setRatingJobId(job.id);
-                        submitRating(job);
-                      }}
+                      onClick={() => submitRating(job)}
                     >
                       {submittingRating && ratingJobId === job.id ? (
                         <>
