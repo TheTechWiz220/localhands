@@ -26,6 +26,9 @@ type Job = {
   created_at: string;
   client_id: string;
   worker_id: string | null;
+  counter_amount?: number | null;
+  counter_note?: string | null;
+  countered_by?: string | null;
   client_name?: string;
   worker_name?: string;
   myRating?: number | null;
@@ -48,6 +51,9 @@ export default function JobsPage() {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [waveRef, setWaveRef] = useState("");
   const [payJobId, setPayJobId] = useState<string | null>(null);
+  const [counterJobId, setCounterJobId] = useState<string | null>(null);
+  const [counterAmount, setCounterAmount] = useState("");
+  const [counterNote, setCounterNote] = useState("");
 
   const supabase = createClient();
 
@@ -234,6 +240,93 @@ export default function JobsPage() {
     if (userId) await loadJobs(userId);
   }
 
+  async function submitCounter(job: Job) {
+    if (!userId) return;
+    const amount = Number(counterAmount);
+    if (!counterAmount || Number.isNaN(amount) || amount <= 0) {
+      setError("Enter a valid counter amount in GMD.");
+      return;
+    }
+
+    setActingId(job.id);
+    setError("");
+    setMessage("");
+
+    const { data, error: uError } = await supabase
+      .from("job_requests")
+      .update({
+        status: "countered",
+        counter_amount: amount,
+        counter_note: counterNote.trim() || null,
+        countered_by: userId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id)
+      .select("id, status")
+      .maybeSingle();
+
+    setActingId(null);
+
+    if (uError) {
+      setError(
+        uError.message.includes("counter") || uError.message.includes("check")
+          ? "Counter failed. Run the counter-offer SQL in Supabase (adds columns + countered status)."
+          : uError.message
+      );
+      return;
+    }
+
+    if (!data) {
+      setError("Update blocked by RLS.");
+      return;
+    }
+
+    setCounterJobId(null);
+    setCounterAmount("");
+    setCounterNote("");
+    setMessage(`Counter sent: ${formatGmd(amount)}. Waiting for the other side.`);
+    if (userId) await loadJobs(userId);
+  }
+
+  async function acceptCounter(job: Job) {
+    if (!job.counter_amount) return;
+
+    setActingId(job.id);
+    setError("");
+    setMessage("");
+
+    const { data, error: uError } = await supabase
+      .from("job_requests")
+      .update({
+        status: "accepted",
+        budget: job.counter_amount,
+        counter_amount: null,
+        counter_note: null,
+        countered_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id)
+      .select("id, status, budget")
+      .maybeSingle();
+
+    setActingId(null);
+
+    if (uError) {
+      setError(uError.message);
+      return;
+    }
+
+    if (!data) {
+      setError("Update blocked by RLS.");
+      return;
+    }
+
+    setMessage(
+      `Counter accepted. Price locked at ${formatGmd(job.counter_amount)}. Pay via Wave in the app.`
+    );
+    if (userId) await loadJobs(userId);
+  }
+
   async function markPaid(job: Job) {
     if (!userId || !job.budget) return;
     if (!waveRef.trim()) {
@@ -371,6 +464,7 @@ export default function JobsPage() {
       "default" | "success" | "warning" | "secondary" | "destructive"
     > = {
       pending: "warning",
+      countered: "warning",
       accepted: "success",
       in_progress: "success",
       completed: "secondary",
@@ -389,6 +483,59 @@ export default function JobsPage() {
     if (p.status === "confirmed") return "Payment confirmed";
     if (p.status === "paid") return "Paid — awaiting confirm";
     return p.status;
+  }
+
+  function counterForm(job: Job) {
+    return (
+      <div className="border-t pt-3 space-y-2">
+        <p className="text-sm font-medium">Counter offer (GMD)</p>
+        <input
+          type="number"
+          min={1}
+          placeholder="e.g. 12000"
+          value={counterJobId === job.id ? counterAmount : ""}
+          onChange={(e) => {
+            setCounterJobId(job.id);
+            setCounterAmount(e.target.value);
+          }}
+          onFocus={() => setCounterJobId(job.id)}
+          className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+        />
+        <input
+          type="text"
+          placeholder="Optional note (why this price)"
+          value={counterJobId === job.id ? counterNote : ""}
+          onChange={(e) => {
+            setCounterJobId(job.id);
+            setCounterNote(e.target.value);
+          }}
+          className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+        />
+        {counterJobId === job.id &&
+          counterAmount &&
+          !Number.isNaN(Number(counterAmount)) &&
+          Number(counterAmount) > 0 && (
+            <p className="text-xs text-gray-500">
+              New total {formatGmd(Number(counterAmount))} · worker would get{" "}
+              {formatGmd(calcFees(Number(counterAmount)).workerGets)} after{" "}
+              {PLATFORM_FEE_PERCENT}% fee
+            </p>
+          )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          disabled={actingId === job.id}
+          onClick={() => submitCounter(job)}
+        >
+          {actingId === job.id ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            "Send counter"
+          )}
+        </Button>
+      </div>
+    );
   }
 
   if (loading) {
@@ -420,7 +567,7 @@ export default function JobsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">My Jobs</h1>
-          <p className="text-sm text-gray-500">Requests, pay & history</p>
+          <p className="text-sm text-gray-500">Requests, negotiate, pay</p>
         </div>
         <Link href="/directory">
           <Button size="sm">
@@ -461,6 +608,14 @@ export default function JobsPage() {
             const canComplete =
               job.status === "accepted" &&
               (payStatus === "confirmed" || job.budget == null);
+
+            // Who needs to respond to the counter?
+            const waitingOnMe =
+              job.status === "countered" &&
+              job.countered_by &&
+              job.countered_by !== userId;
+            const iSentCounter =
+              job.status === "countered" && job.countered_by === userId;
 
             return (
               <div key={job.id} className="rounded-xl border bg-white p-4 space-y-3">
@@ -504,6 +659,11 @@ export default function JobsPage() {
                       {formatGmd(fees.amount)}
                     </span>
                   )}
+                  {job.status === "countered" && job.counter_amount != null && (
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-900 rounded font-medium">
+                      Counter: {formatGmd(job.counter_amount)}
+                    </span>
+                  )}
                   {paymentLabel(job.payment) && (
                     <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded">
                       {paymentLabel(job.payment)}
@@ -511,43 +671,79 @@ export default function JobsPage() {
                   )}
                 </div>
 
-                {fees && job.status !== "declined" && job.status !== "cancelled" && (
-                  <div className="text-xs text-gray-500 space-y-0.5 border-t pt-2">
-                    <p>Client pays: {formatGmd(fees.amount)}</p>
-                    <p>Worker gets: {formatGmd(fees.workerGets)}</p>
-                    <p>
-                      Platform fee ({PLATFORM_FEE_PERCENT}%):{" "}
-                      {formatGmd(fees.fee)}
-                    </p>
-                  </div>
-                )}
-
-                {job.status === "pending" && isWorker && (
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      disabled={actingId === job.id}
-                      onClick={() => updateStatus(job.id, "accepted")}
-                    >
-                      {actingId === job.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
+                {fees &&
+                  job.status !== "declined" &&
+                  job.status !== "cancelled" && (
+                    <div className="text-xs text-gray-500 space-y-0.5 border-t pt-2">
+                      <p>
+                        Current offer: {formatGmd(fees.amount)} (worker gets{" "}
+                        {formatGmd(fees.workerGets)} after fee)
+                      </p>
+                      {job.status === "countered" && job.counter_amount != null && (
                         <>
-                          <Check className="h-4 w-4 mr-1" /> Accept
-                          {fees ? ` · ${formatGmd(fees.amount)}` : ""}
+                          <p className="text-amber-800 font-medium">
+                            Proposed: {formatGmd(job.counter_amount)} (worker
+                            gets{" "}
+                            {formatGmd(
+                              calcFees(job.counter_amount).workerGets
+                            )}
+                            )
+                          </p>
+                          {job.counter_note && (
+                            <p className="italic">“{job.counter_note}”</p>
+                          )}
                         </>
                       )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="flex-1"
-                      disabled={actingId === job.id}
-                      onClick={() => updateStatus(job.id, "declined")}
-                    >
-                      <X className="h-4 w-4 mr-1" /> Decline
-                    </Button>
+                    </div>
+                  )}
+
+                {/* Pending: worker accept / counter / decline */}
+                {job.status === "pending" && isWorker && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={actingId === job.id}
+                        onClick={() => updateStatus(job.id, "accepted")}
+                      >
+                        {actingId === job.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4 mr-1" /> Accept
+                            {fees ? ` · ${formatGmd(fees.amount)}` : ""}
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                        disabled={actingId === job.id}
+                        onClick={() => updateStatus(job.id, "declined")}
+                      >
+                        <X className="h-4 w-4 mr-1" /> Decline
+                      </Button>
+                    </div>
+                    {counterJobId === job.id ? (
+                      counterForm(job)
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setCounterJobId(job.id);
+                          setCounterAmount(
+                            job.budget ? String(job.budget) : ""
+                          );
+                          setCounterNote("");
+                        }}
+                      >
+                        Counter offer
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -563,7 +759,70 @@ export default function JobsPage() {
                   </Button>
                 )}
 
-                {/* Payment: client marks paid after accept */}
+                {/* Countered: other party responds */}
+                {waitingOnMe && (
+                  <div className="space-y-2 border-t pt-3">
+                    <p className="text-sm font-medium text-amber-800">
+                      They proposed {formatGmd(job.counter_amount || 0)}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={actingId === job.id}
+                        onClick={() => acceptCounter(job)}
+                      >
+                        {actingId === job.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4 mr-1" /> Accept counter
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                        disabled={actingId === job.id}
+                        onClick={() => updateStatus(job.id, "declined")}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                    {counterJobId === job.id ? (
+                      counterForm(job)
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setCounterJobId(job.id);
+                          setCounterAmount(
+                            job.counter_amount
+                              ? String(job.counter_amount)
+                              : job.budget
+                                ? String(job.budget)
+                                : ""
+                          );
+                          setCounterNote("");
+                        }}
+                      >
+                        Counter again
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {iSentCounter && (
+                  <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2">
+                    Counter sent ({formatGmd(job.counter_amount || 0)}). Waiting
+                    for them to accept, counter again, or decline.
+                  </p>
+                )}
+
+                {/* Payment after accepted */}
                 {job.status === "accepted" &&
                   isClient &&
                   payStatus !== "paid" &&
@@ -573,8 +832,8 @@ export default function JobsPage() {
                       <p className="text-sm font-medium">Pay with Wave</p>
                       <p className="text-xs text-gray-500">
                         Send {formatGmd(fees.amount)} via Wave, then paste the
-                        transaction reference here. Do not pay only on WhatsApp
-                        — keep it tracked in LocalHands.
+                        transaction reference. Keep payment tracked in
+                        LocalHands.
                       </p>
                       <input
                         type="text"
@@ -602,7 +861,6 @@ export default function JobsPage() {
                     </div>
                   )}
 
-                {/* Worker confirms payment */}
                 {job.status === "accepted" &&
                   isWorker &&
                   payStatus === "paid" && (
@@ -613,7 +871,6 @@ export default function JobsPage() {
                         <span className="font-mono">
                           {job.payment?.wave_reference || "—"}
                         </span>
-                        . Confirm only after you received the money.
                       </p>
                       <Button
                         size="sm"
