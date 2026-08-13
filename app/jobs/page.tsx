@@ -21,6 +21,9 @@ type Job = {
   client_name?: string;
   worker_name?: string;
   myRating?: number | null;
+  other_avg_rating?: number;
+  other_rating_count?: number;
+  other_jobs_done?: number;
 };
 
 export default function JobsPage() {
@@ -36,6 +39,43 @@ export default function JobsPage() {
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const supabase = createClient();
+
+  async function loadTrustStats(userIdToCheck: string) {
+    const { data: ratingRows } = await supabase
+      .from("ratings")
+      .select("rating")
+      .eq("to_user_id", userIdToCheck);
+
+    let avg = 0;
+    const count = ratingRows?.length || 0;
+    if (count > 0) {
+      avg =
+        Math.round(
+          (ratingRows!.reduce((s: number, r: any) => s + (r.rating || 0), 0) /
+            count) *
+            10
+        ) / 10;
+    }
+
+    // Jobs completed as client or worker
+    const { count: asClient } = await supabase
+      .from("job_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", userIdToCheck)
+      .eq("status", "completed");
+
+    const { count: asWorker } = await supabase
+      .from("job_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("worker_id", userIdToCheck)
+      .eq("status", "completed");
+
+    return {
+      avg,
+      count,
+      jobsDone: (asClient || 0) + (asWorker || 0),
+    };
+  }
 
   async function loadJobs(uid: string) {
     const { data, error: qError } = await supabase
@@ -86,11 +126,27 @@ export default function JobsPage() {
         if (r?.rating) myRating = r.rating;
       }
 
+      // Trust stats for the other party
+      const otherId = uid === j.client_id ? j.worker_id : j.client_id;
+      let other_avg_rating = 0;
+      let other_rating_count = 0;
+      let other_jobs_done = 0;
+
+      if (otherId) {
+        const trust = await loadTrustStats(otherId);
+        other_avg_rating = trust.avg;
+        other_rating_count = trust.count;
+        other_jobs_done = trust.jobsDone;
+      }
+
       enriched.push({
         ...j,
         client_name,
         worker_name,
         myRating,
+        other_avg_rating,
+        other_rating_count,
+        other_jobs_done,
       });
     }
 
@@ -279,6 +335,7 @@ export default function JobsPage() {
           {jobs.map((job) => {
             const isWorker = job.worker_id === userId;
             const isClient = job.client_id === userId;
+            const otherLabel = isWorker ? job.client_name : job.worker_name;
 
             return (
               <div key={job.id} className="rounded-xl border bg-white p-4 space-y-3">
@@ -294,6 +351,24 @@ export default function JobsPage() {
                     </p>
                   </div>
                   {statusBadge(job.status)}
+                </div>
+
+                {/* Trust strip for the other party */}
+                <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                  <span className="font-medium text-gray-800">{otherLabel}</span>
+                  {(job.other_rating_count || 0) > 0 ? (
+                    <span className="flex items-center gap-0.5 text-amber-600">
+                      <Star className="h-3 w-3 fill-current" />
+                      {job.other_avg_rating}
+                      <span className="text-gray-400">
+                        ({job.other_rating_count})
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">No ratings yet</span>
+                  )}
+                  <span className="text-gray-400">·</span>
+                  <span>{job.other_jobs_done || 0} jobs done</span>
                 </div>
 
                 <p className="text-sm text-gray-600">{job.description}</p>
