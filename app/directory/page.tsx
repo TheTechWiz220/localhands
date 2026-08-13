@@ -1,24 +1,66 @@
-import { Search, MapPin, Star, ShieldCheck } from "lucide-react";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Search, MapPin, Star, ShieldCheck, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { workers as fallbackWorkers } from "@/lib/data";
+import { createClient } from "@/lib/supabase/client";
 
-export default async function DirectoryPage() {
-  let workers: any[] = fallbackWorkers;
+const AREAS = [
+  "All areas",
+  "Kololi",
+  "Brusubi",
+  "Bijilo",
+  "Senegambia",
+  "Bakau",
+  "Fajara",
+  "Serrekunda",
+  "Kanifing",
+  "Brikama",
+  "Banjul",
+  "Basse",
+  "Other",
+];
 
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select(
-        "id, full_name, location_area, bio, verification_status, availability, avatar_url"
-      )
-      .eq("role", "worker")
-      .eq("verification_status", "verified")
-      .order("created_at", { ascending: false });
+type Worker = {
+  id: string;
+  full_name: string;
+  location_area: string;
+  bio: string;
+  avatar_url: string | null;
+  skills: string[];
+  rating: number;
+  rating_count: number;
+  jobs_done: number;
+};
 
-    if (data && data.length > 0) {
+export default function DirectoryPage() {
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [area, setArea] = useState("All areas");
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+
+      const { data } = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, location_area, bio, verification_status, availability, avatar_url"
+        )
+        .eq("role", "worker")
+        .eq("verification_status", "verified")
+        .order("created_at", { ascending: false });
+
+      if (!data || data.length === 0) {
+        setWorkers([]);
+        setLoading(false);
+        return;
+      }
+
       const withSkills = await Promise.all(
         data.map(async (p: any) => {
           const { data: skills } = await supabase
@@ -60,16 +102,36 @@ export default async function DirectoryPage() {
             rating,
             rating_count: ratingRows?.length || 0,
             jobs_done: count || 0,
-            availability: p.availability || "available",
-            verification_status: p.verification_status,
-          };
+          } as Worker;
         })
       );
-      workers = withSkills;
+
+      setWorkers(withSkills);
+      setLoading(false);
     }
-  } catch {
-    // keep fallback demo workers
-  }
+
+    load();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    return workers.filter((w) => {
+      const areaOk =
+        area === "All areas" ||
+        w.location_area.toLowerCase() === area.toLowerCase();
+
+      if (!areaOk) return false;
+      if (!q) return true;
+
+      const inName = w.full_name.toLowerCase().includes(q);
+      const inBio = w.bio.toLowerCase().includes(q);
+      const inSkill = w.skills.some((s) => s.toLowerCase().includes(q));
+      const inArea = w.location_area.toLowerCase().includes(q);
+
+      return inName || inBio || inSkill || inArea;
+    });
+  }, [workers, query, area]);
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
@@ -80,77 +142,129 @@ export default async function DirectoryPage() {
         </p>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search skills or name..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
-        />
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search skills or name..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+          />
+        </div>
+
+        <select
+          value={area}
+          onChange={(e) => setArea(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+        >
+          {AREAS.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <p className="text-sm text-gray-500">{workers.length} verified workers</p>
+      {loading ? (
+        <div className="py-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600 mb-3" />
+          <p className="text-sm text-gray-500">Loading workers...</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-gray-500">
+            {filtered.length} verified worker
+            {filtered.length === 1 ? "" : "s"}
+            {(query || area !== "All areas") && workers.length !== filtered.length
+              ? ` (of ${workers.length})`
+              : ""}
+          </p>
 
-      <div className="space-y-4">
-        {workers.map((w) => (
-          <Link key={w.id} href={`/worker/${w.id}`}>
-            <div className="rounded-xl border bg-white p-4 hover:shadow-md transition-shadow">
-              <div className="flex gap-3">
-                {w.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={w.avatar_url}
-                    alt={w.full_name}
-                    className="h-14 w-14 rounded-full object-cover border"
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg">
-                    {w.full_name[0]}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold">{w.full_name}</h3>
-                    <Badge variant="success" className="text-[10px]">
-                      <ShieldCheck className="h-3 w-3 mr-0.5 inline" />
-                      Verified
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {w.location_area}
-                  </div>
-                  {w.skills?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {w.skills.slice(0, 3).map((s: string) => (
-                        <Badge key={s} variant="secondary">
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mt-1 text-sm">
-                    {w.rating > 0 ? (
-                      <span className="flex items-center gap-0.5 text-amber-600">
-                        <Star className="h-3.5 w-3.5 fill-current" />
-                        {w.rating}
-                        {w.rating_count > 0 && (
-                          <span className="text-gray-400">
-                            ({w.rating_count})
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">No ratings</span>
-                    )}
-                    <span className="text-gray-500">· {w.jobs_done} jobs</span>
-                  </div>
-                </div>
-              </div>
+          {filtered.length === 0 ? (
+            <div className="rounded-xl border bg-white py-10 text-center px-4">
+              <p className="font-medium">No workers match</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Try another skill, name, or area.
+              </p>
+              {(query || area !== "All areas") && (
+                <button
+                  type="button"
+                  className="text-sm text-green-700 mt-3 hover:underline"
+                  onClick={() => {
+                    setQuery("");
+                    setArea("All areas");
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
-          </Link>
-        ))}
-      </div>
+          ) : (
+            <div className="space-y-4">
+              {filtered.map((w) => (
+                <Link key={w.id} href={`/worker/${w.id}`}>
+                  <div className="rounded-xl border bg-white p-4 hover:shadow-md transition-shadow">
+                    <div className="flex gap-3">
+                      {w.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={w.avatar_url}
+                          alt={w.full_name}
+                          className="h-14 w-14 rounded-full object-cover border"
+                        />
+                      ) : (
+                        <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg">
+                          {w.full_name[0]}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold">{w.full_name}</h3>
+                          <Badge variant="success" className="text-[10px]">
+                            <ShieldCheck className="h-3 w-3 mr-0.5 inline" />
+                            Verified
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {w.location_area}
+                        </div>
+                        {w.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {w.skills.slice(0, 3).map((s) => (
+                              <Badge key={s} variant="secondary">
+                                {s}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 text-sm">
+                          {w.rating > 0 ? (
+                            <span className="flex items-center gap-0.5 text-amber-600">
+                              <Star className="h-3.5 w-3.5 fill-current" />
+                              {w.rating}
+                              {w.rating_count > 0 && (
+                                <span className="text-gray-400">
+                                  ({w.rating_count})
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">No ratings</span>
+                          )}
+                          <span className="text-gray-500">· {w.jobs_done} jobs</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
