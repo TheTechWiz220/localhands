@@ -6,36 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { Hand, CheckCircle2, Loader2, ImagePlus, X } from "lucide-react";
 import Link from "next/link";
-
-const SKILLS = [
-  "Phone & Electronics Repair",
-  "Solar Installation",
-  "Electrical",
-  "Plumbing",
-  "Delivery & Errands",
-  "Cleaning & Home Help",
-  "Tailoring",
-  "Farm Labour",
-  "Land Clearing",
-  "Construction & Masonry",
-  "General Labour",
-  "Content Creation",
-];
-
-const AREAS = [
-  "Kololi",
-  "Brusubi",
-  "Bijilo",
-  "Senegambia",
-  "Bakau",
-  "Fajara",
-  "Serrekunda",
-  "Kanifing",
-  "Brikama",
-  "Banjul",
-  "Basse",
-  "Other",
-];
+import { SKILLS, AREAS } from "@/lib/skills";
 
 const MAX_FILES = 6;
 const MAX_SIZE_MB = 5;
@@ -53,6 +24,7 @@ export default function ApplyPage() {
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [customSkill, setCustomSkill] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +77,15 @@ export default function ApplyPage() {
         ? prev.filter((s) => s !== skill)
         : [...prev, skill]
     );
+  }
+
+  function addCustomSkill() {
+    const s = customSkill.trim();
+    if (!s) return;
+    if (!selectedSkills.includes(s)) {
+      setSelectedSkills((prev) => [...prev, s]);
+    }
+    setCustomSkill("");
   }
 
   function onFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -357,11 +338,45 @@ export default function ApplyPage() {
               );
             })}
           </div>
+
+          <div className="flex gap-2 mt-3">
+            <input
+              type="text"
+              placeholder="Add another skill..."
+              value={customSkill}
+              onChange={(e) => setCustomSkill(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCustomSkill();
+                }
+              }}
+              className="flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addCustomSkill}
+              disabled={!customSkill.trim()}
+            >
+              Add
+            </Button>
+          </div>
+
           {selectedSkills.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {selectedSkills.map((s) => (
                 <Badge key={s} variant="success">
                   {s}
+                  <button
+                    type="button"
+                    className="ml-1"
+                    onClick={() => toggleSkill(s)}
+                    aria-label={`Remove ${s}`}
+                  >
+                    ×
+                  </button>
                 </Badge>
               ))}
             </div>
