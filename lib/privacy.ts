@@ -26,10 +26,9 @@ export function participantDisplayName(
 }
 
 /** Contact (WhatsApp/phone) only after price locked */
-export function canShareContact(jobStatus: string, paymentStatus?: string | null) {
-  if (jobStatus === "completed") return true;
-  if (jobStatus === "accepted" || jobStatus === "in_progress") return true;
-  // optional stricter: require payment confirmed
-  // return paymentStatus === "confirmed" || paymentStatus === "paid";
-  return false;
+export function canShareContact(
+  jobStatus: string,
+  _paymentStatus?: string | null
+) {
+  return ["accepted", "in_progress", "completed"].includes(jobStatus);
 }
