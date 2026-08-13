@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { calcFees, formatGmd, PLATFORM_FEE_PERCENT } from "@/lib/pricing";
+
+type Payment = {
+  id: string;
+  status: string;
+  wave_reference: string | null;
+  amount: number | null;
+};
 
 type Job = {
   id: string;
@@ -24,6 +32,7 @@ type Job = {
   other_avg_rating?: number;
   other_rating_count?: number;
   other_jobs_done?: number;
+  payment?: Payment | null;
 };
 
 export default function JobsPage() {
@@ -37,6 +46,8 @@ export default function JobsPage() {
   const [stars, setStars] = useState(5);
   const [comment, setComment] = useState("");
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [waveRef, setWaveRef] = useState("");
+  const [payJobId, setPayJobId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -57,7 +68,6 @@ export default function JobsPage() {
         ) / 10;
     }
 
-    // Jobs completed as client or worker
     const { count: asClient } = await supabase
       .from("job_requests")
       .select("id", { count: "exact", head: true })
@@ -126,7 +136,6 @@ export default function JobsPage() {
         if (r?.rating) myRating = r.rating;
       }
 
-      // Trust stats for the other party
       const otherId = uid === j.client_id ? j.worker_id : j.client_id;
       let other_avg_rating = 0;
       let other_rating_count = 0;
@@ -139,6 +148,17 @@ export default function JobsPage() {
         other_jobs_done = trust.jobsDone;
       }
 
+      let payment: Payment | null = null;
+      const { data: pay } = await supabase
+        .from("payments")
+        .select("id, status, wave_reference, amount")
+        .eq("job_id", j.id)
+        .order("paid_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pay) payment = pay as Payment;
+
       enriched.push({
         ...j,
         client_name,
@@ -147,6 +167,7 @@ export default function JobsPage() {
         other_avg_rating,
         other_rating_count,
         other_jobs_done,
+        payment,
       });
     }
 
@@ -213,6 +234,98 @@ export default function JobsPage() {
     if (userId) await loadJobs(userId);
   }
 
+  async function markPaid(job: Job) {
+    if (!userId || !job.budget) return;
+    if (!waveRef.trim()) {
+      setError("Enter your Wave transaction reference.");
+      return;
+    }
+
+    setActingId(job.id);
+    setError("");
+    setMessage("");
+
+    const fees = calcFees(job.budget);
+
+    if (job.payment?.id) {
+      const { error: uError } = await supabase
+        .from("payments")
+        .update({
+          status: "paid",
+          wave_reference: waveRef.trim(),
+          amount: fees.amount,
+          method: "wave",
+          paid_at: new Date().toISOString(),
+        })
+        .eq("id", job.payment.id);
+
+      if (uError) {
+        setActingId(null);
+        setError(
+          uError.message.includes("policy")
+            ? "Payment blocked. Run payments policies in Supabase SQL Editor."
+            : uError.message
+        );
+        return;
+      }
+    } else {
+      const { error: iError } = await supabase.from("payments").insert({
+        job_id: job.id,
+        amount: fees.amount,
+        method: "wave",
+        status: "paid",
+        wave_reference: waveRef.trim(),
+        paid_at: new Date().toISOString(),
+      });
+
+      if (iError) {
+        setActingId(null);
+        setError(
+          iError.message.includes("policy")
+            ? "Payment blocked. Run payments policies in Supabase SQL Editor."
+            : iError.message
+        );
+        return;
+      }
+    }
+
+    setActingId(null);
+    setWaveRef("");
+    setPayJobId(null);
+    setMessage("Marked as paid. Waiting for worker to confirm.");
+    if (userId) await loadJobs(userId);
+  }
+
+  async function confirmPayment(job: Job) {
+    if (!job.payment?.id) return;
+
+    setActingId(job.id);
+    setError("");
+    setMessage("");
+
+    const { error: uError } = await supabase
+      .from("payments")
+      .update({
+        status: "confirmed",
+        confirmed_at: new Date().toISOString(),
+      })
+      .eq("id", job.payment.id);
+
+    setActingId(null);
+
+    if (uError) {
+      setError(
+        uError.message.includes("policy")
+          ? "Confirm blocked. Run payments policies in Supabase SQL Editor."
+          : uError.message
+      );
+      return;
+    }
+
+    setMessage("Payment confirmed. You can mark the job completed.");
+    if (userId) await loadJobs(userId);
+  }
+
   async function submitRating(job: Job) {
     if (!userId) return;
 
@@ -271,6 +384,13 @@ export default function JobsPage() {
     );
   }
 
+  function paymentLabel(p?: Payment | null) {
+    if (!p) return null;
+    if (p.status === "confirmed") return "Payment confirmed";
+    if (p.status === "paid") return "Paid — awaiting confirm";
+    return p.status;
+  }
+
   if (loading) {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
@@ -300,7 +420,7 @@ export default function JobsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">My Jobs</h1>
-          <p className="text-sm text-gray-500">Requests and history</p>
+          <p className="text-sm text-gray-500">Requests, pay & history</p>
         </div>
         <Link href="/directory">
           <Button size="sm">
@@ -336,6 +456,11 @@ export default function JobsPage() {
             const isWorker = job.worker_id === userId;
             const isClient = job.client_id === userId;
             const otherLabel = isWorker ? job.client_name : job.worker_name;
+            const fees = job.budget != null ? calcFees(job.budget) : null;
+            const payStatus = job.payment?.status;
+            const canComplete =
+              job.status === "accepted" &&
+              (payStatus === "confirmed" || job.budget == null);
 
             return (
               <div key={job.id} className="rounded-xl border bg-white p-4 space-y-3">
@@ -353,7 +478,6 @@ export default function JobsPage() {
                   {statusBadge(job.status)}
                 </div>
 
-                {/* Trust strip for the other party */}
                 <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
                   <span className="font-medium text-gray-800">{otherLabel}</span>
                   {(job.other_rating_count || 0) > 0 ? (
@@ -373,14 +497,30 @@ export default function JobsPage() {
 
                 <p className="text-sm text-gray-600">{job.description}</p>
 
-                <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                <div className="flex flex-wrap gap-2 text-xs items-center">
                   <Badge variant="secondary">{job.skill_needed}</Badge>
-                  {job.budget != null && (
-                    <span className="px-2 py-0.5 bg-gray-50 rounded">
-                      GMD {job.budget}
+                  {fees && (
+                    <span className="px-2 py-0.5 bg-green-50 text-green-800 rounded font-medium">
+                      {formatGmd(fees.amount)}
+                    </span>
+                  )}
+                  {paymentLabel(job.payment) && (
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded">
+                      {paymentLabel(job.payment)}
                     </span>
                   )}
                 </div>
+
+                {fees && job.status !== "declined" && job.status !== "cancelled" && (
+                  <div className="text-xs text-gray-500 space-y-0.5 border-t pt-2">
+                    <p>Client pays: {formatGmd(fees.amount)}</p>
+                    <p>Worker gets: {formatGmd(fees.workerGets)}</p>
+                    <p>
+                      Platform fee ({PLATFORM_FEE_PERCENT}%):{" "}
+                      {formatGmd(fees.fee)}
+                    </p>
+                  </div>
+                )}
 
                 {job.status === "pending" && isWorker && (
                   <div className="flex gap-2 pt-1">
@@ -395,6 +535,7 @@ export default function JobsPage() {
                       ) : (
                         <>
                           <Check className="h-4 w-4 mr-1" /> Accept
+                          {fees ? ` · ${formatGmd(fees.amount)}` : ""}
                         </>
                       )}
                     </Button>
@@ -422,7 +563,82 @@ export default function JobsPage() {
                   </Button>
                 )}
 
-                {job.status === "accepted" && (isWorker || isClient) && (
+                {/* Payment: client marks paid after accept */}
+                {job.status === "accepted" &&
+                  isClient &&
+                  payStatus !== "paid" &&
+                  payStatus !== "confirmed" &&
+                  fees && (
+                    <div className="border-t pt-3 space-y-2">
+                      <p className="text-sm font-medium">Pay with Wave</p>
+                      <p className="text-xs text-gray-500">
+                        Send {formatGmd(fees.amount)} via Wave, then paste the
+                        transaction reference here. Do not pay only on WhatsApp
+                        — keep it tracked in LocalHands.
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Wave reference / transaction ID"
+                        value={payJobId === job.id ? waveRef : ""}
+                        onChange={(e) => {
+                          setPayJobId(job.id);
+                          setWaveRef(e.target.value);
+                        }}
+                        onFocus={() => setPayJobId(job.id)}
+                        className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+                      />
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={actingId === job.id}
+                        onClick={() => markPaid(job)}
+                      >
+                        {actingId === job.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "I paid via Wave"
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                {/* Worker confirms payment */}
+                {job.status === "accepted" &&
+                  isWorker &&
+                  payStatus === "paid" && (
+                    <div className="border-t pt-3 space-y-2">
+                      <p className="text-sm font-medium">Confirm payment</p>
+                      <p className="text-xs text-gray-500">
+                        Client reported Wave ref:{" "}
+                        <span className="font-mono">
+                          {job.payment?.wave_reference || "—"}
+                        </span>
+                        . Confirm only after you received the money.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={actingId === job.id}
+                        onClick={() => confirmPayment(job)}
+                      >
+                        {actingId === job.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Confirm I received payment"
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                {job.status === "accepted" &&
+                  isClient &&
+                  payStatus === "paid" && (
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2">
+                      Waiting for worker to confirm Wave payment.
+                    </p>
+                  )}
+
+                {canComplete && (isWorker || isClient) && (
                   <Button
                     size="sm"
                     className="w-full"
@@ -432,6 +648,16 @@ export default function JobsPage() {
                     Mark completed
                   </Button>
                 )}
+
+                {job.status === "accepted" &&
+                  fees &&
+                  payStatus !== "confirmed" &&
+                  payStatus !== "paid" &&
+                  isWorker && (
+                    <p className="text-xs text-gray-500">
+                      Waiting for client to mark Wave payment in the app.
+                    </p>
+                  )}
 
                 {job.status === "completed" && job.myRating != null && (
                   <div className="flex items-center gap-1 text-sm text-amber-600">
