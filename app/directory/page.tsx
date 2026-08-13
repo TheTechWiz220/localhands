@@ -26,6 +26,30 @@ export default async function DirectoryPage() {
             .select("skill")
             .eq("worker_id", p.id);
 
+          const { data: ratingRows } = await supabase
+            .from("ratings")
+            .select("rating")
+            .eq("to_user_id", p.id);
+
+          let rating = 0;
+          if (ratingRows && ratingRows.length > 0) {
+            rating =
+              Math.round(
+                (ratingRows.reduce(
+                  (sum: number, r: any) => sum + (r.rating || 0),
+                  0
+                ) /
+                  ratingRows.length) *
+                  10
+              ) / 10;
+          }
+
+          const { count } = await supabase
+            .from("job_requests")
+            .select("id", { count: "exact", head: true })
+            .eq("worker_id", p.id)
+            .eq("status", "completed");
+
           return {
             id: p.id,
             full_name: p.full_name || "Worker",
@@ -33,8 +57,9 @@ export default async function DirectoryPage() {
             bio: p.bio || "",
             avatar_url: p.avatar_url || null,
             skills: (skills || []).map((s: any) => s.skill),
-            rating: 0,
-            jobs_done: 0,
+            rating,
+            rating_count: ratingRows?.length || 0,
+            jobs_done: count || 0,
             availability: p.availability || "available",
             verification_status: p.verification_status,
           };
@@ -104,15 +129,22 @@ export default async function DirectoryPage() {
                       ))}
                     </div>
                   )}
-                  {w.rating > 0 && (
-                    <div className="flex items-center gap-2 mt-1 text-sm">
+                  <div className="flex items-center gap-2 mt-1 text-sm">
+                    {w.rating > 0 ? (
                       <span className="flex items-center gap-0.5 text-amber-600">
                         <Star className="h-3.5 w-3.5 fill-current" />
                         {w.rating}
+                        {w.rating_count > 0 && (
+                          <span className="text-gray-400">
+                            ({w.rating_count})
+                          </span>
+                        )}
                       </span>
-                      <span className="text-gray-500">· {w.jobs_done} jobs</span>
-                    </div>
-                  )}
+                    ) : (
+                      <span className="text-gray-400 text-xs">No ratings</span>
+                    )}
+                    <span className="text-gray-500">· {w.jobs_done} jobs</span>
+                  </div>
                 </div>
               </div>
             </div>
