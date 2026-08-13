@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { workers as fallbackWorkers } from "@/lib/data";
+import { publicReviewerLabel } from "@/lib/privacy";
 
 export default async function WorkerPage({
   params,
@@ -45,7 +46,6 @@ export default async function WorkerPage({
       .eq("worker_id", id)
       .order("created_at", { ascending: false });
 
-    // Ratings received by this worker
     const { data: ratingRows } = await supabase
       .from("ratings")
       .select("rating, comment, created_at, from_user_id")
@@ -62,25 +62,16 @@ export default async function WorkerPage({
         ) / 10;
 
       for (const r of ratingRows) {
-        let from_name = "Client";
-        if (r.from_user_id) {
-          const { data: fromProfile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", r.from_user_id)
-            .maybeSingle();
-          if (fromProfile?.full_name) from_name = fromProfile.full_name;
-        }
+        // Privacy: never expose client full name on public profile
         reviews.push({
           rating: r.rating,
           comment: r.comment,
-          from_name,
+          from_name: publicReviewerLabel(),
           created_at: r.created_at,
         });
       }
     }
 
-    // Completed jobs as worker
     const { count } = await supabase
       .from("job_requests")
       .select("id", { count: "exact", head: true })
@@ -160,7 +151,7 @@ export default async function WorkerPage({
         <Link href={`/request/${worker.id}`} className="flex-1">
           <Button className="w-full">Request this person</Button>
         </Link>
-        <Button variant="outline" size="icon" disabled>
+        <Button variant="outline" size="icon" disabled title="Chat after job is accepted">
           <MessageCircle className="h-5 w-5" />
         </Button>
       </div>
@@ -218,6 +209,9 @@ export default async function WorkerPage({
 
       <div className="rounded-xl border bg-white p-4 space-y-3">
         <h3 className="font-semibold">Reviews</h3>
+        <p className="text-xs text-gray-400">
+          Client names are private. Only ratings and comments are public.
+        </p>
         {reviews.length === 0 ? (
           <p className="text-sm text-gray-500">
             No reviews yet. Complete jobs to build trust.
@@ -226,7 +220,7 @@ export default async function WorkerPage({
           reviews.map((r, i) => (
             <div key={i} className="border-t pt-3 first:border-0 first:pt-0">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{r.from_name}</p>
+                <p className="text-sm font-medium text-gray-600">{r.from_name}</p>
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <Star
