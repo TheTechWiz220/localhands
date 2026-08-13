@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Briefcase, Plus, Loader2, Check, X } from "lucide-react";
+import { Briefcase, Plus, Loader2, Check, X, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,7 @@ type Job = {
   worker_id: string | null;
   client_name?: string;
   worker_name?: string;
+  myRating?: number | null;
 };
 
 export default function JobsPage() {
@@ -29,6 +30,10 @@ export default function JobsPage() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [ratingJobId, setRatingJobId] = useState<string | null>(null);
+  const [stars, setStars] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const supabase = createClient();
 
@@ -70,10 +75,22 @@ export default function JobsPage() {
         if (w?.full_name) worker_name = w.full_name;
       }
 
+      let myRating: number | null = null;
+      if (j.status === "completed") {
+        const { data: r } = await supabase
+          .from("ratings")
+          .select("rating")
+          .eq("job_id", j.id)
+          .eq("from_user_id", uid)
+          .maybeSingle();
+        if (r?.rating) myRating = r.rating;
+      }
+
       enriched.push({
         ...j,
         client_name,
         worker_name,
+        myRating,
       });
     }
 
@@ -132,11 +149,57 @@ export default function JobsPage() {
     }
 
     setMessage(`Job marked as ${status}.`);
+    if (status === "completed") {
+      setRatingJobId(jobId);
+      setStars(5);
+      setComment("");
+    }
+    if (userId) await loadJobs(userId);
+  }
+
+  async function submitRating(job: Job) {
+    if (!userId || !job.worker_id && !job.client_id) return;
+
+    // Client rates worker; worker can rate client
+    const toUserId = userId === job.client_id ? job.worker_id : job.client_id;
+    if (!toUserId) {
+      setError("Missing other party for rating.");
+      return;
+    }
+
+    setSubmittingRating(true);
+    setError("");
+
+    const { error: insertError } = await supabase.from("ratings").insert({
+      job_id: job.id,
+      from_user_id: userId,
+      to_user_id: toUserId,
+      rating: stars,
+      comment: comment.trim() || null,
+    });
+
+    setSubmittingRating(false);
+
+    if (insertError) {
+      setError(
+        insertError.message.includes("policy") ||
+          insertError.message.includes("row-level")
+          ? "Rating blocked. Run the ratings policies in Supabase SQL Editor."
+          : insertError.message
+      );
+      return;
+    }
+
+    setMessage("Thanks for your rating!");
+    setRatingJobId(null);
     if (userId) await loadJobs(userId);
   }
 
   function statusBadge(status: string) {
-    const map: Record<string, "default" | "success" | "warning" | "secondary" | "destructive"> = {
+    const map: Record<
+      string,
+      "default" | "success" | "warning" | "secondary" | "destructive"
+    > = {
       pending: "warning",
       accepted: "success",
       in_progress: "success",
@@ -215,6 +278,10 @@ export default function JobsPage() {
           {jobs.map((job) => {
             const isWorker = job.worker_id === userId;
             const isClient = job.client_id === userId;
+            const showRatingForm =
+              job.status === "completed" &&
+              !job.myRating &&
+              (ratingJobId === job.id || ratingJobId === null);
 
             return (
               <div key={job.id} className="rounded-xl border bg-white p-4 space-y-3">
@@ -292,6 +359,74 @@ export default function JobsPage() {
                   >
                     Mark completed
                   </Button>
+                )}
+
+                {job.status === "completed" && job.myRating && (
+                  <div className="flex items-center gap-1 text-sm text-amber-600">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={`h-4 w-4 ${
+                          n <= job.myRating! ? "fill-current" : "text-gray-300"
+                        }`}
+                      />
+                    ))}
+                    <span className="text-gray-500 ml-1">You rated</span>
+                  </div>
+                )}
+
+                {job.status === "completed" && !job.myRating && (
+                  <div className="border-t pt-3 space-y-3">
+                    <p className="text-sm font-medium">
+                      Rate {isClient ? job.worker_name : job.client_name}
+                    </p>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setStars(n)}
+                          className="p-1"
+                        >
+                          <Star
+                            className={`h-7 w-7 ${\n                              n <= stars
+                                ? "fill-amber-500 text-amber-500"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      rows={2}
+                      placeholder="Optional comment..."
+                      value={ratingJobId === job.id ? comment : ""}
+                      onChange={(e) => {
+                        setRatingJobId(job.id);
+                        setComment(e.target.value);
+                      }}
+                      onFocus={() => setRatingJobId(job.id)}
+                      className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600 resize-none"
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      disabled={submittingRating}
+                      onClick={() => {
+                        setRatingJobId(job.id);
+                        submitRating(job);
+                      }}
+                    >
+                      {submittingRating && ratingJobId === job.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit rating"
+                      )}
+                    </Button>
+                  </div>
                 )}
               </div>
             );
