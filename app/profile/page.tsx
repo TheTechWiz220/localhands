@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [locationArea, setLocationArea] = useState<string>("");
+  const [whatsappPhone, setWhatsappPhone] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editArea, setEditArea] = useState("");
+  const [editWhatsapp, setEditWhatsapp] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -75,7 +77,9 @@ export default function ProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, role, verification_status, avatar_url, location_area")
+        .select(
+          "full_name, role, verification_status, avatar_url, location_area, whatsapp_phone"
+        )
         .eq("id", user.id)
         .single();
 
@@ -85,11 +89,12 @@ export default function ProfilePage() {
         setStatus(profile.verification_status);
         setAvatarUrl(profile.avatar_url || null);
         setLocationArea(profile.location_area || "");
+        setWhatsappPhone(profile.whatsapp_phone || "");
         setEditName(profile.full_name || "");
         setEditArea(profile.location_area || "");
+        setEditWhatsapp(profile.whatsapp_phone || "");
       }
 
-      // If name missing but saved from signup intent
       const pendingName = localStorage.getItem("lh_full_name");
       if (pendingName && (!profile?.full_name || profile.full_name.trim() === "")) {
         await supabase
@@ -132,6 +137,7 @@ export default function ProfilePage() {
       .update({
         full_name: editName.trim(),
         location_area: editArea || null,
+        whatsapp_phone: editWhatsapp.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
@@ -139,12 +145,17 @@ export default function ProfilePage() {
     setSaving(false);
 
     if (error) {
-      setSaveError(error.message);
+      setSaveError(
+        error.message.includes("whatsapp")
+          ? "Add whatsapp_phone column — run the SQL in Supabase."
+          : error.message
+      );
       return;
     }
 
     setFullName(editName.trim());
     setLocationArea(editArea);
+    setWhatsappPhone(editWhatsapp.trim());
     setEditing(false);
     setSaveMsg("Profile updated.");
   }
@@ -345,6 +356,9 @@ export default function ProfilePage() {
             {locationArea && (
               <p className="text-xs text-gray-400 mt-0.5">{locationArea}</p>
             )}
+            {whatsappPhone && (
+              <p className="text-xs text-green-700 mt-0.5">WA: {whatsappPhone}</p>
+            )}
             {!editing && (
               <button
                 type="button"
@@ -352,21 +366,20 @@ export default function ProfilePage() {
                 onClick={() => {
                   setEditName(fullName || "");
                   setEditArea(locationArea || "");
+                  setEditWhatsapp(whatsappPhone || "");
                   setEditing(true);
                   setSaveMsg("");
                   setSaveError("");
                 }}
               >
                 <Pencil className="h-3 w-3" />
-                Edit name &amp; area
+                Edit name, area &amp; WhatsApp
               </button>
             )}
           </div>
         </div>
 
-        {avatarError && (
-          <p className="text-sm text-red-600">{avatarError}</p>
-        )}
+        {avatarError && <p className="text-sm text-red-600">{avatarError}</p>}
 
         {editing && (
           <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
@@ -394,6 +407,21 @@ export default function ProfilePage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">
+                WhatsApp number
+              </label>
+              <input
+                type="tel"
+                value={editWhatsapp}
+                onChange={(e) => setEditWhatsapp(e.target.value)}
+                placeholder="e.g. 2207XXXXXXX or 7XXXXXXX"
+                className="w-full px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+              <p className="text-[11px] text-gray-500 mt-1">
+                Shared only after a job is accepted — not on public profiles.
+              </p>
             </div>
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
             <div className="flex gap-2">
