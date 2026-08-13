@@ -2,11 +2,12 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Hand, Mail, CheckCircle2, Loader2 } from "lucide-react";
+import { Hand, Mail, CheckCircle2, Loader2, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 
 function AuthForm() {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"worker" | "client">("client");
   const [loading, setLoading] = useState(false);
@@ -43,10 +44,16 @@ function AuthForm() {
   }, [searchParams]);
 
   async function sendMagicLink() {
+    if (!fullName.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     localStorage.setItem("lh_role", role);
+    localStorage.setItem("lh_full_name", fullName.trim());
 
     const redirectTo = `${window.location.origin}/auth/callback`;
 
@@ -55,6 +62,9 @@ function AuthForm() {
       options: {
         shouldCreateUser: true,
         emailRedirectTo: redirectTo,
+        data: {
+          full_name: fullName.trim(),
+        },
       },
     });
 
@@ -138,6 +148,20 @@ function AuthForm() {
         </div>
 
         <div>
+          <label className="text-sm font-medium mb-1.5 block">Full name</label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Your name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full pl-10 pr-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+        </div>
+
+        <div>
           <label className="text-sm font-medium mb-1.5 block">Email address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -156,7 +180,7 @@ function AuthForm() {
         <Button
           className="w-full"
           onClick={sendMagicLink}
-          disabled={!email.includes("@") || loading}
+          disabled={!email.includes("@") || !fullName.trim() || loading}
         >
           {loading ? (
             <>
@@ -171,6 +195,7 @@ function AuthForm() {
 
       <p className="text-center text-xs text-gray-400 mt-6">
         Free email sign-in. No password needed — just click the link in your email.
+        You can apply as a worker later from your profile.
       </p>
     </div>
   );

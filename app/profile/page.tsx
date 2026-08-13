@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { User, LogOut, Loader2, ImagePlus, Camera } from "lucide-react";
+import { User, LogOut, Loader2, ImagePlus, Camera, Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -9,11 +9,27 @@ import Link from "next/link";
 const MAX_FILES = 6;
 const MAX_SIZE_MB = 5;
 
+const AREAS = [
+  "Kololi",
+  "Brusubi",
+  "Bijilo",
+  "Senegambia",
+  "Bakau",
+  "Fajara",
+  "Serrekunda",
+  "Kanifing",
+  "Brikama",
+  "Banjul",
+  "Basse",
+  "Other",
+];
+
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
+  const [locationArea, setLocationArea] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -22,6 +38,12 @@ export default function ProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [avatarError, setAvatarError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editArea, setEditArea] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [saveError, setSaveError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,7 +75,7 @@ export default function ProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, role, verification_status, avatar_url")
+        .select("full_name, role, verification_status, avatar_url, location_area")
         .eq("id", user.id)
         .single();
 
@@ -62,6 +84,24 @@ export default function ProfilePage() {
         setRole(profile.role);
         setStatus(profile.verification_status);
         setAvatarUrl(profile.avatar_url || null);
+        setLocationArea(profile.location_area || "");
+        setEditName(profile.full_name || "");
+        setEditArea(profile.location_area || "");
+      }
+
+      // If name missing but saved from signup intent
+      const pendingName = localStorage.getItem("lh_full_name");
+      if (pendingName && (!profile?.full_name || profile.full_name.trim() === "")) {
+        await supabase
+          .from("profiles")
+          .update({
+            full_name: pendingName,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+        setFullName(pendingName);
+        setEditName(pendingName);
+        localStorage.removeItem("lh_full_name");
       }
 
       await loadProof(user.id);
@@ -74,6 +114,39 @@ export default function ProfilePage() {
   async function signOut() {
     await supabase.auth.signOut();
     window.location.href = "/";
+  }
+
+  async function saveProfile() {
+    if (!userId) return;
+    if (!editName.trim()) {
+      setSaveError("Please enter your name.");
+      return;
+    }
+
+    setSaving(true);
+    setSaveError("");
+    setSaveMsg("");
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: editName.trim(),
+        location_area: editArea || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    setSaving(false);
+
+    if (error) {
+      setSaveError(error.message);
+      return;
+    }
+
+    setFullName(editName.trim());
+    setLocationArea(editArea);
+    setEditing(false);
+    setSaveMsg("Profile updated.");
   }
 
   async function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -93,7 +166,6 @@ export default function ProfilePage() {
       }
 
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      // Must start with auth user id for storage policies
       const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
       const { error: storageError } = await supabase.storage
@@ -104,9 +176,7 @@ export default function ProfilePage() {
           contentType: file.type,
         });
 
-      if (storageError) {
-        throw new Error(`Storage: ${storageError.message}`);
-      }
+      if (storageError) throw new Error(`Storage: ${storageError.message}`);
 
       const {
         data: { publicUrl },
@@ -120,13 +190,9 @@ export default function ProfilePage() {
           avatar_url: urlWithBust,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", userId)
-        .select("id")
-        .maybeSingle();
+        .eq("id", userId);
 
-      if (updateError) {
-        throw new Error(`Profile: ${updateError.message}`);
-      }
+      if (updateError) throw new Error(`Profile: ${updateError.message}`);
 
       setAvatarUrl(urlWithBust);
     } catch (err: any) {
@@ -273,22 +339,88 @@ export default function ProfilePage() {
               onChange={onAvatarSelected}
             />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="font-semibold">{fullName || "No name set"}</p>
             <p className="text-sm text-gray-500">{email}</p>
-            <button
-              type="button"
-              className="text-xs text-green-700 mt-1 hover:underline"
-              onClick={() => avatarInputRef.current?.click()}
-              disabled={avatarUploading}
-            >
-              {avatarUrl ? "Change photo" : "Add profile photo"}
-            </button>
+            {locationArea && (
+              <p className="text-xs text-gray-400 mt-0.5">{locationArea}</p>
+            )}
+            {!editing && (
+              <button
+                type="button"
+                className="text-xs text-green-700 mt-1 hover:underline inline-flex items-center gap-1"
+                onClick={() => {
+                  setEditName(fullName || "");
+                  setEditArea(locationArea || "");
+                  setEditing(true);
+                  setSaveMsg("");
+                  setSaveError("");
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+                Edit name &amp; area
+              </button>
+            )}
           </div>
         </div>
 
         {avatarError && (
           <p className="text-sm text-red-600">{avatarError}</p>
+        )}
+
+        {editing && (
+          <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
+            <div>
+              <label className="text-xs font-medium mb-1 block">Full name *</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Your name"
+                className="w-full px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">Area</label>
+              <select
+                value={editArea}
+                onChange={(e) => setEditArea(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+              >
+                <option value="">Select area</option>
+                {AREAS.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1" onClick={saveProfile} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-1" /> Save
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {saveMsg && (
+          <p className="text-sm text-green-700 bg-green-50 rounded-lg p-2">{saveMsg}</p>
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
