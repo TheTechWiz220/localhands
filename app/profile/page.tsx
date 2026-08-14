@@ -5,6 +5,7 @@ import { User, LogOut, Loader2, ImagePlus, Camera, Pencil, Check } from "lucide-
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { ProofGallery } from "@/components/image-lightbox";
 
 const MAX_FILES = 6;
 const MAX_SIZE_MB = 5;
@@ -373,7 +374,7 @@ export default function ProfilePage() {
                 }}
               >
                 <Pencil className="h-3 w-3" />
-                Edit name, area &amp; WhatsApp
+                Edit name, area & WhatsApp
               </button>
             )}
           </div>
@@ -484,17 +485,7 @@ export default function ProfilePage() {
             </div>
 
             {proofUrls.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {proofUrls.map((url, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Proof ${i + 1}`}
-                    className="aspect-square object-cover rounded-lg border"
-                  />
-                ))}
-              </div>
+              <ProofGallery urls={proofUrls} emptyLabel="" />
             )}
 
             <input
