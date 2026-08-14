@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { workers as fallbackWorkers } from "@/lib/data";
 import { publicReviewerLabel } from "@/lib/privacy";
+import { ProofGallery } from "@/components/image-lightbox";
 
 export default async function WorkerPage({
   params,
@@ -62,7 +63,6 @@ export default async function WorkerPage({
         ) / 10;
 
       for (const r of ratingRows) {
-        // Privacy: never expose client full name on public profile
         reviews.push({
           rating: r.rating,
           comment: r.comment,
@@ -151,7 +151,12 @@ export default async function WorkerPage({
         <Link href={`/request/${worker.id}`} className="flex-1">
           <Button className="w-full">Request this person</Button>
         </Link>
-        <Button variant="outline" size="icon" disabled title="Chat after job is accepted">
+        <Button
+          variant="outline"
+          size="icon"
+          disabled
+          title="Chat after job is accepted"
+        >
           <MessageCircle className="h-5 w-5" />
         </Button>
       </div>
@@ -176,35 +181,7 @@ export default async function WorkerPage({
 
       <div className="rounded-xl border bg-white p-4">
         <h3 className="font-semibold mb-2">Proof of Work</h3>
-        {proofUrls.length > 0 ? (
-          <div className="grid grid-cols-3 gap-2">
-            {proofUrls.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={url}
-                alt={`Proof ${i + 1}`}
-                className="aspect-square object-cover rounded-lg border"
-              />
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400"
-                >
-                  Photo {i}
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
-              No proof photos uploaded yet.
-            </p>
-          </>
-        )}
+        <ProofGallery urls={proofUrls} />
       </div>
 
       <div className="rounded-xl border bg-white p-4 space-y-3">
