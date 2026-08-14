@@ -63,8 +63,6 @@ function AuthForm() {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        // Create account mode: allow new users. Sign in: still allow create
-        // so a first-time user who taps Sign in is not blocked.
         shouldCreateUser: true,
         emailRedirectTo: redirectTo,
         data:
@@ -104,8 +102,10 @@ function AuthForm() {
             We sent a link to <strong>{email}</strong>.
           </p>
           <p className="text-sm text-gray-400 mt-2">
-            Open it to {mode === "create" ? "finish creating your account" : "sign in"}.
-            Prefer the same browser (Chrome), not the email app's built-in browser.
+            Open it to{" "}
+            {mode === "create" ? "finish creating your account" : "sign in"}.
+            Prefer the same browser (Chrome), not the email app's built-in
+            browser.
           </p>
           <p className="text-xs text-gray-400 mt-4">Also check spam / junk.</p>
         </div>
@@ -178,7 +178,7 @@ function AuthForm() {
                 Find help
               </Button>
               <Button
-                type="button"asetype="button"
+                type="button"
                 variant={role === "worker" ? "default" : "outline"}
                 onClick={() => setRole("worker")}
               >
