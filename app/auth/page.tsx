@@ -83,35 +83,32 @@ function AuthForm() {
 
   if (checkingSession) {
     return (
-      <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600 mb-4" />
-        <p className="text-gray-500">Checking session...</p>
+      <div className="max-w-sm mx-auto px-4 py-20 text-center">
+        <Loader2 className="h-7 w-7 animate-spin mx-auto text-green-600 mb-3" />
+        <p className="text-sm text-gray-500">Checking session...</p>
       </div>
     );
   }
 
   if (sent) {
     return (
-      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6">
-        <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-green-100 text-green-700">
-          <CheckCircle2 className="h-8 w-8" />
+      <div className="max-w-sm mx-auto px-4 py-16 text-center space-y-5">
+        <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-green-100 text-green-700">
+          <CheckCircle2 className="h-7 w-7" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Check your email</h1>
-          <p className="text-gray-500 mt-2">
-            We sent a link to <strong>{email}</strong>.
+          <h1 className="text-xl font-bold">Check your email</h1>
+          <p className="text-gray-500 mt-2 text-sm">
+            Link sent to <strong className="text-gray-800">{email}</strong>
           </p>
-          <p className="text-sm text-gray-400 mt-2">
-            Open it to{" "}
-            {mode === "create" ? "finish creating your account" : "sign in"}.
-            Prefer the same browser (Chrome), not the email app's built-in
-            browser.
+          <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+            Open it in the same browser (Chrome). Check spam if you do not see
+            it.
           </p>
-          <p className="text-xs text-gray-400 mt-4">Also check spam / junk.</p>
         </div>
         <button
           type="button"
-          className="text-sm text-green-700 hover:underline"
+          className="text-sm text-green-700 font-medium hover:underline"
           onClick={() => {
             setSent(false);
             setError("");
@@ -129,83 +126,106 @@ function AuthForm() {
     !loading;
 
   return (
-    <div className="max-w-md mx-auto px-4 py-10">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-green-100 text-green-700 mb-4">
-          <Hand className="h-7 w-7" />
+    <div className="max-w-sm mx-auto px-4 py-10">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-700 mb-3">
+          <Hand className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-bold">Welcome to LocalHands</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-xl font-bold tracking-tight">
+          {mode === "create" ? "Create account" : "Sign in"}
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
           {mode === "create"
-            ? "Create a free account with your email"
-            : "Sign in with your email"}
+            ? "Join LocalHands with your email"
+            : "Welcome back"}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <Button
-          type="button"
-          variant={mode === "create" ? "default" : "outline"}
-          onClick={() => {
-            setMode("create");
-            setError("");
-          }}
-        >
-          Create account
-        </Button>
-        <Button
-          type="button"
-          variant={mode === "signin" ? "default" : "outline"}
-          onClick={() => {
-            setMode("signin");
-            setError("");
-          }}
-        >
-          Sign in
-        </Button>
-      </div>
-
-      <div className="rounded-xl border bg-white p-6 space-y-4">
-        {mode === "create" && (
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">I want to...</label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={role === "client" ? "default" : "outline"}
-                onClick={() => setRole("client")}
-              >
-                Find help
-              </Button>
-              <Button
-                type="button"
-                variant={role === "worker" ? "default" : "outline"}
-                onClick={() => setRole("worker")}
-              >
-                Offer skills
-              </Button>
-            </div>
-          </div>
-        )}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
+        {/* Mode switch — subtle, not two big buttons */}
+        <div className="flex rounded-lg bg-gray-100 p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("create");
+              setError("");
+            }}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+              mode === "create"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500"
+            }`}
+          >
+            Create
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signin");
+              setError("");
+            }}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+              mode === "signin"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500"
+            }`}
+          >
+            Sign in
+          </button>
+        </div>
 
         {mode === "create" && (
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Full name</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Your name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full pl-10 pr-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
-              />
+          <>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                Full name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+                />
+              </div>
             </div>
-          </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1.5">I am here to</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRole("client")}
+                  className={`flex-1 py-2 text-sm rounded-xl border transition ${
+                    role === "client"
+                      ? "border-green-600 bg-green-50 text-green-800 font-medium"
+                      : "border-gray-200 text-gray-600"
+                  }`}
+                >
+                  Hire someone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("worker")}
+                  className={`flex-1 py-2 text-sm rounded-xl border transition ${
+                    role === "worker"
+                      ? "border-green-600 bg-green-50 text-green-800 font-medium"
+                      : "border-gray-200 text-gray-600"
+                  }`}
+                >
+                  Offer skills
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">Email address</label>
+          <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+            Email
+          </label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -213,47 +233,65 @@ function AuthForm() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-10 pr-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
             />
           </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <Button className="w-full" onClick={sendMagicLink} disabled={!canSubmit}>
+        <Button
+          className="w-full h-11 rounded-xl text-sm font-semibold"
+          onClick={sendMagicLink}
+          disabled={!canSubmit}
+        >
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Sending link...
+              Sending...
             </>
           ) : mode === "create" ? (
-            "Create account — send link"
+            "Continue"
           ) : (
-            "Send sign-in link"
+            "Send link"
           )}
         </Button>
 
-        <p className="text-xs text-gray-500 text-center">
-          No password. We email a one-time link.
-          {mode === "signin" && (
-            <>
-              {" "}
-              New here?{" "}
-              <button
-                type="button"
-                className="text-green-700 hover:underline"
-                onClick={() => setMode("create")}
-              >
-                Create an account
-              </button>
-            </>
-          )}
+        <p className="text-xs text-center text-gray-400">
+          No password — we email a one-time link
         </p>
       </div>
 
-      <p className="text-center text-xs text-gray-400 mt-6">
-        Free email access for now. Phone sign-in can come later when we add SMS.
-        Workers can finish verification from their profile after signing in.
+      <p className="text-center text-sm text-gray-500 mt-6">
+        {mode === "create" ? (
+          <>
+            Already have an account?{" "}
+            <button
+              type="button"
+              className="text-green-700 font-medium hover:underline"
+              onClick={() => {
+                setMode("signin");
+                setError("");
+              }}
+            >
+              Sign in
+            </button>
+          </>
+        ) : (
+          <>
+            New here?{" "}
+            <button
+              type="button"
+              className="text-green-700 font-medium hover:underline"
+              onClick={() => {
+                setMode("create");
+                setError("");
+              }}
+            >
+              Create account
+            </button>
+          </>
+        )}
       </p>
     </div>
   );
@@ -263,9 +301,9 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="max-w-md mx-auto px-4 py-20 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600 mb-4" />
-          <p className="text-gray-500">Loading...</p>
+        <div className="max-w-sm mx-auto px-4 py-20 text-center">
+          <Loader2 className="h-7 w-7 animate-spin mx-auto text-green-600 mb-3" />
+          <p className="text-sm text-gray-500">Loading...</p>
         </div>
       }
     >
