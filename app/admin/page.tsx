@@ -12,6 +12,7 @@ import {
   Users,
   Search,
   ExternalLink,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,18 @@ type ListedWorker = {
   created_at: string | null;
 };
 
+type ListedClient = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  avatar_url: string | null;
+  created_at: string | null;
+  jobs_posted: number;
+  jobs_completed: number;
+  avg_rating: number;
+  rating_count: number;
+};
+
 type AdminJob = {
   id: string;
   title: string;
@@ -59,6 +72,7 @@ type AdminJob = {
 type Stats = {
   pendingWorkers: number;
   verifiedWorkers: number;
+  clientsCount: number;
   jobsPending: number;
   jobsCountered: number;
   jobsAccepted: number;
@@ -72,7 +86,9 @@ export default function AdminPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [workers, setWorkers] = useState<PendingWorker[]>([]);
   const [verifiedList, setVerifiedList] = useState<ListedWorker[]>([]);
+  const [clientsList, setClientsList] = useState<ListedClient[]>([]);
   const [workerSearch, setWorkerSearch] = useState("");
+  const [clientSearch, setClientSearch] = useState("");
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingList, setLoadingList] = useState(false);
@@ -80,7 +96,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [tab, setTab] = useState<
-    "overview" | "verify" | "workers" | "jobs"
+    "overview" | "verify" | "workers" | "clients" | "jobs"
   >("overview");
 
   const supabase = createClient();
@@ -162,6 +178,88 @@ export default function AdminPage() {
     }
 
     setVerifiedList(enriched);
+  }
+
+  async function loadClients() {
+    // Clients by role, plus anyone who has posted a job (even if also a worker)
+    const { data: byRole } = await supabase
+      .from("profiles")
+      .select("id, full_name, location_area, avatar_url, created_at, role")
+      .eq("role", "client")
+      .order("full_name", { ascending: true });
+
+    const { data: jobClients } = await supabase
+      .from("job_requests")
+      .select("client_id")
+      .not("client_id", "is", null);
+
+    const idSet = new Set<string>((byRole || []).map((p: any) => p.id));
+    for (const row of jobClients || []) {
+      if (row.client_id) idSet.add(row.client_id);
+    }
+
+    const ids = Array.from(idSet);
+    if (ids.length === 0) {
+      setClientsList([]);
+      return;
+    }
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, location_area, avatar_url, created_at, role")
+      .in("id", ids)
+      .neq("role", "admin");
+
+    const enriched: ListedClient[] = [];
+
+    for (const p of profiles || []) {
+      const { count: posted } = await supabase
+        .from("job_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", p.id);
+
+      const { count: completed } = await supabase
+        .from("job_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", p.id)
+        .eq("status", "completed");
+
+      const { data: ratingRows } = await supabase
+        .from("ratings")
+        .select("rating")
+        .eq("to_user_id", p.id);
+
+      let avg = 0;
+      const rCount = ratingRows?.length || 0;
+      if (rCount > 0) {
+        avg =
+          Math.round(
+            (ratingRows!.reduce(
+              (s: number, r: any) => s + (r.rating || 0),
+              0
+            ) /
+              rCount) *
+              10
+          ) / 10;
+      }
+
+      enriched.push({
+        id: p.id,
+        full_name: p.full_name,
+        location_area: p.location_area,
+        avatar_url: p.avatar_url,
+        created_at: p.created_at,
+        jobs_posted: posted || 0,
+        jobs_completed: completed || 0,
+        avg_rating: avg,
+        rating_count: rCount,
+      });
+    }
+
+    enriched.sort((a, b) =>
+      (a.full_name || "").localeCompare(b.full_name || "")
+    );
+    setClientsList(enriched);
   }
 
   async function loadJobsAndStats() {
@@ -258,10 +356,16 @@ export default function AdminPage() {
       .eq("role", "worker")
       .eq("verification_status", "verified");
 
+    const { count: clientsCount } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "client");
+
     setJobs(enriched);
     setStats({
       pendingWorkers: pendingWorkers || 0,
       verifiedWorkers: verifiedWorkers || 0,
+      clientsCount: clientsCount || 0,
       jobsPending,
       jobsCountered,
       jobsAccepted,
@@ -276,6 +380,7 @@ export default function AdminPage() {
     setErrorMsg("");
     await loadPending();
     await loadVerifiedWorkers();
+    await loadClients();
     await loadJobsAndStats();
     setLoadingList(false);
   }
@@ -303,6 +408,7 @@ export default function AdminPage() {
         setLoadingList(true);
         await loadPending();
         await loadVerifiedWorkers();
+        await loadClients();
         await loadJobsAndStats();
         setLoadingList(false);
       } else {
@@ -384,6 +490,15 @@ export default function AdminPage() {
     return hay.includes(q);
   });
 
+  const filteredClients = clientsList.filter((c) => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return true;
+    const hay = [c.full_name || "", c.location_area || ""]
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  });
+
   if (access === "loading") {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
@@ -438,6 +553,7 @@ export default function AdminPage() {
             ["overview", "Overview"],
             ["verify", "Verify"],
             ["workers", "Workers"],
+            ["clients", "Clients"],
             ["jobs", "Jobs"],
           ] as const
         ).map(([id, label]) => (
@@ -457,6 +573,9 @@ export default function AdminPage() {
             )}
             {id === "workers" && verifiedList.length > 0 && (
               <span className="ml-1">({verifiedList.length})</span>
+            )}
+            {id === "clients" && clientsList.length > 0 && (
+              <span className="ml-1">({clientsList.length})</span>
             )}
           </button>
         ))}
@@ -487,7 +606,18 @@ export default function AdminPage() {
                 {stats.pendingWorkers} pending · tap to list
               </p>
             </button>
-            <div className="rounded-xl border bg-white p-4">
+            <button
+              type="button"
+              onClick={() => setTab("clients")}
+              className="rounded-xl border bg-white p-4 text-left hover:border-green-300 transition"
+            >
+              <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+                <Users className="h-3.5 w-3.5" /> Clients
+              </div>
+              <p className="text-2xl font-bold">{stats.clientsCount}</p>
+              <p className="text-xs text-gray-500">tap to list</p>
+            </button>
+            <div className="rounded-xl border bg-white p-4 col-span-2">
               <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
                 <Wallet className="h-3.5 w-3.5" /> Fees ({PLATFORM_FEE_PERCENT}%)
               </div>
@@ -695,6 +825,98 @@ export default function AdminPage() {
                 {w.created_at && (
                   <p className="text-[10px] text-gray-400">
                     Joined {new Date(w.created_at).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {tab === "clients" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Clients</h2>
+            <Badge variant="secondary">{clientsList.length}</Badge>
+          </div>
+          <p className="text-xs text-gray-400">
+            No emails shown. Includes client accounts and anyone who has posted
+            a job.
+          </p>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="search"
+              placeholder="Search name or area..."
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+
+          {loadingList ? (
+            <div className="py-8 text-center">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-green-600" />
+            </div>
+          ) : filteredClients.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-6">
+              {clientsList.length === 0
+                ? "No clients yet."
+                : "No match for that search."}
+            </p>
+          ) : (
+            filteredClients.map((c) => (
+              <div
+                key={c.id}
+                className="rounded-xl border bg-white p-4 space-y-2"
+              >
+                <div className="flex items-start gap-3">
+                  {c.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.avatar_url}
+                      alt=""
+                      className="h-11 w-11 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-11 w-11 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-sm font-semibold">
+                      {(c.full_name || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">
+                      {c.full_name || "Unnamed"}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {c.location_area || "Area not set"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                  <span>
+                    <strong>{c.jobs_posted}</strong> posted
+                  </span>
+                  <span>
+                    <strong>{c.jobs_completed}</strong> completed
+                  </span>
+                  {c.rating_count > 0 ? (
+                    <span className="flex items-center gap-0.5 text-amber-600">
+                      <Star className="h-3 w-3 fill-current" />
+                      {c.avg_rating}
+                      <span className="text-gray-400">
+                        ({c.rating_count})
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">No ratings</span>
+                  )}
+                </div>
+
+                {c.created_at && (
+                  <p className="text-[10px] text-gray-400">
+                    Joined {new Date(c.created_at).toLocaleDateString()}
                   </p>
                 )}
               </div>
