@@ -41,11 +41,28 @@ export default function PostJobPage() {
       }
 
       setClientId(user.id);
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        role: "client",
-        updated_at: new Date().toISOString(),
-      });
+
+      // Ensure profile exists, but never demote admin/worker
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from("profiles").insert({
+          id: user.id,
+          role: "client",
+          updated_at: new Date().toISOString(),
+        });
+      } else if (!existing.role || existing.role === "") {
+        await supabase
+          .from("profiles")
+          .update({ role: "client", updated_at: new Date().toISOString() })
+          .eq("id", user.id);
+      }
+      // admin / worker roles left untouched
+
       setLoading(false);
     }
     init();
@@ -79,7 +96,6 @@ export default function PostJobPage() {
     setSubmitting(false);
 
     if (insertError) {
-      // Fallback if "open" not allowed by check constraint — use pending
       if (
         insertError.message.includes("open") ||
         insertError.message.includes("check") ||
