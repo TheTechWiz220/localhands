@@ -10,6 +10,8 @@ import {
   Briefcase,
   Wallet,
   Users,
+  Search,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,17 @@ type PendingWorker = {
   verification_status: string;
   skills: string[];
   proof_urls: string[];
+};
+
+type ListedWorker = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  bio: string | null;
+  verification_status: string;
+  avatar_url: string | null;
+  skills: string[];
+  created_at: string | null;
 };
 
 type AdminJob = {
@@ -58,13 +71,17 @@ export default function AdminPage() {
   const [access, setAccess] = useState<AccessState>("loading");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [workers, setWorkers] = useState<PendingWorker[]>([]);
+  const [verifiedList, setVerifiedList] = useState<ListedWorker[]>([]);
+  const [workerSearch, setWorkerSearch] = useState("");
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loadingList, setLoadingList] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [tab, setTab] = useState<"overview" | "verify" | "jobs">("overview");
+  const [tab, setTab] = useState<
+    "overview" | "verify" | "workers" | "jobs"
+  >("overview");
 
   const supabase = createClient();
 
@@ -107,6 +124,44 @@ export default function AdminPage() {
     }
 
     setWorkers(enriched);
+  }
+
+  async function loadVerifiedWorkers() {
+    const { data: profiles, error } = await supabase
+      .from("profiles")
+      .select(
+        "id, full_name, location_area, bio, verification_status, avatar_url, created_at"
+      )
+      .eq("role", "worker")
+      .eq("verification_status", "verified")
+      .order("full_name", { ascending: true });
+
+    if (error || !profiles) {
+      setVerifiedList([]);
+      return;
+    }
+
+    const enriched: ListedWorker[] = [];
+
+    for (const p of profiles) {
+      const { data: skills } = await supabase
+        .from("worker_skills")
+        .select("skill")
+        .eq("worker_id", p.id);
+
+      enriched.push({
+        id: p.id,
+        full_name: p.full_name,
+        location_area: p.location_area,
+        bio: p.bio,
+        verification_status: p.verification_status,
+        avatar_url: p.avatar_url,
+        skills: (skills || []).map((s: any) => s.skill),
+        created_at: p.created_at,
+      });
+    }
+
+    setVerifiedList(enriched);
   }
 
   async function loadJobsAndStats() {
@@ -220,6 +275,7 @@ export default function AdminPage() {
     setLoadingList(true);
     setErrorMsg("");
     await loadPending();
+    await loadVerifiedWorkers();
     await loadJobsAndStats();
     setLoadingList(false);
   }
@@ -246,6 +302,7 @@ export default function AdminPage() {
         setAccess("allowed");
         setLoadingList(true);
         await loadPending();
+        await loadVerifiedWorkers();
         await loadJobsAndStats();
         setLoadingList(false);
       } else {
@@ -291,6 +348,7 @@ export default function AdminPage() {
       status === "verified" ? "Worker approved." : "Worker rejected."
     );
     setWorkers((prev) => prev.filter((w) => w.id !== workerId));
+    await loadVerifiedWorkers();
     await loadJobsAndStats();
   }
 
@@ -312,6 +370,19 @@ export default function AdminPage() {
       </Badge>
     );
   }
+
+  const filteredVerified = verifiedList.filter((w) => {
+    const q = workerSearch.trim().toLowerCase();
+    if (!q) return true;
+    const hay = [
+      w.full_name || "",
+      w.location_area || "",
+      ...(w.skills || []),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  });
 
   if (access === "loading") {
     return (
@@ -361,11 +432,12 @@ export default function AdminPage() {
         </Button>
       </div>
 
-      <div className="flex gap-2 text-sm">
+      <div className="flex flex-wrap gap-2 text-sm">
         {(
           [
             ["overview", "Overview"],
             ["verify", "Verify"],
+            ["workers", "Workers"],
             ["jobs", "Jobs"],
           ] as const
         ).map(([id, label]) => (
@@ -383,6 +455,9 @@ export default function AdminPage() {
             {id === "verify" && workers.length > 0 && (
               <span className="ml-1">({workers.length})</span>
             )}
+            {id === "workers" && verifiedList.length > 0 && (
+              <span className="ml-1">({verifiedList.length})</span>
+            )}
           </button>
         ))}
       </div>
@@ -399,15 +474,19 @@ export default function AdminPage() {
       {tab === "overview" && stats && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border bg-white p-4">
+            <button
+              type="button"
+              onClick={() => setTab("workers")}
+              className="rounded-xl border bg-white p-4 text-left hover:border-green-300 transition"
+            >
               <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-                <Users className="h-3.5 w-3.5" /> Workers
+                <Users className="h-3.5 w-3.5" /> Verified workers
               </div>
               <p className="text-2xl font-bold">{stats.verifiedWorkers}</p>
               <p className="text-xs text-amber-700">
-                {stats.pendingWorkers} pending approval
+                {stats.pendingWorkers} pending · tap to list
               </p>
-            </div>
+            </button>
             <div className="rounded-xl border bg-white p-4">
               <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
                 <Wallet className="h-3.5 w-3.5" /> Fees ({PLATFORM_FEE_PERCENT}%)
@@ -532,6 +611,94 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {tab === "workers" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Verified workers</h2>
+            <Badge variant="success">{verifiedList.length}</Badge>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="search"
+              placeholder="Search name, area, skill..."
+              value={workerSearch}
+              onChange={(e) => setWorkerSearch(e.target.value)}
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
+
+          {loadingList ? (
+            <div className="py-8 text-center">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-green-600" />
+            </div>
+          ) : filteredVerified.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-6">
+              {verifiedList.length === 0
+                ? "No verified workers yet. Approve applicants under Verify."
+                : "No match for that search."}
+            </p>
+          ) : (
+            filteredVerified.map((w) => (
+              <div
+                key={w.id}
+                className="rounded-xl border bg-white p-4 space-y-2"
+              >
+                <div className="flex items-start gap-3">
+                  {w.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={w.avatar_url}
+                      alt=""
+                      className="h-11 w-11 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="h-11 w-11 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-sm font-semibold">
+                      {(w.full_name || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">
+                      {w.full_name || "Unnamed"}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {w.location_area || "Area not set"}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/worker/${w.id}`}
+                    className="text-xs text-green-700 font-medium flex items-center gap-0.5 shrink-0"
+                  >
+                    Profile <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
+
+                {w.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {w.skills.map((s) => (
+                      <Badge key={s} variant="secondary">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {w.bio && (
+                  <p className="text-xs text-gray-600 line-clamp-2">{w.bio}</p>
+                )}
+
+                {w.created_at && (
+                  <p className="text-[10px] text-gray-400">
+                    Joined {new Date(w.created_at).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))
           )}
         </div>
       )}
