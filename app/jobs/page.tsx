@@ -193,7 +193,6 @@ export default function JobsPage() {
     }
     setJobs(enriched);
 
-    // Open jobs for verified workers to claim
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, verification_status")
@@ -699,12 +698,18 @@ export default function JobsPage() {
                 <p className="text-sm text-gray-600">{job.description}</p>
                 <div className="flex flex-wrap gap-2 text-xs items-center">
                   <Badge variant="secondary">{job.skill_needed}</Badge>
-                  {fees && (
-                    <span className="px-2 py-0.5 bg-green-50 text-green-800 rounded font-medium">
-                      {formatGmd(fees.amount)}
-                    </span>
-                  )}
                 </div>
+                {fees && (
+                  <div className="rounded-lg bg-white border border-green-100 p-3 text-sm space-y-1">
+                    <p className="font-semibold text-green-900">
+                      You receive {formatGmd(fees.workerGets)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Client pays {formatGmd(fees.amount)} · LocalHands keeps{" "}
+                      {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)})
+                    </p>
+                  </div>
+                )}
                 <Button
                   size="sm"
                   className="w-full"
@@ -715,8 +720,8 @@ export default function JobsPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <Check className="h-4 w-4 mr-1" /> Claim this job
-                      {fees ? ` · ${formatGmd(fees.amount)}` : ""}
+                      <Check className="h-4 w-4 mr-1" /> Claim
+                      {fees ? ` · get ${formatGmd(fees.workerGets)}` : ""}
                     </>
                   )}
                 </Button>
@@ -878,7 +883,7 @@ export default function JobsPage() {
                         ) : (
                           <>
                             <Check className="h-4 w-4 mr-1" /> Accept
-                            {fees ? ` · ${formatGmd(fees.amount)}` : ""}
+                            {fees ? ` · get ${formatGmd(fees.workerGets)}` : ""}
                           </>
                         )}
                       </Button>
