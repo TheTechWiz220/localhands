@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export function Header() {
   const [email, setEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,7 +17,23 @@ export function Header() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      setEmail(user?.email ?? null);
+
+      if (!user) {
+        setEmail(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      setEmail(user.email ?? null);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setIsAdmin(profile?.role === "admin");
       setLoading(false);
     }
 
@@ -25,7 +42,19 @@ export function Header() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user?.email ?? null);
+      if (!session?.user) {
+        setEmail(null);
+        setIsAdmin(false);
+        return;
+      }
+      setEmail(session.user.email ?? null);
+      // Refresh role on auth change
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle()
+        .then(({ data }) => setIsAdmin(data?.role === "admin"));
     });
 
     return () => subscription.unsubscribe();
@@ -35,6 +64,7 @@ export function Header() {
     const supabase = createClient();
     await supabase.auth.signOut();
     setEmail(null);
+    setIsAdmin(false);
     window.location.href = "/";
   }
 
@@ -46,9 +76,14 @@ export function Header() {
           <span className="text-lg">LocalHands</span>
         </Link>
         <div className="flex items-center gap-3">
-          <Link href="/admin" className="text-xs text-gray-500 hover:text-green-700">
-            Admin
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="text-xs text-gray-500 hover:text-green-700"
+            >
+              Admin
+            </Link>
+          )}
           {loading ? (
             <span className="text-sm text-gray-400">…</span>
           ) : email ? (
