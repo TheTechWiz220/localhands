@@ -38,12 +38,15 @@ type Job = {
   other_jobs_done?: number;
   payment?: Payment | null;
   other_whatsapp?: string | null;
+  is_open?: boolean;
 };
 
 export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isVerifiedWorker, setIsVerifiedWorker] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [openJobs, setOpenJobs] = useState<Job[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -95,6 +98,82 @@ export default function JobsPage() {
     };
   }
 
+  async function enrichJob(j: any, uid: string): Promise<Job> {
+    let client_name = "Client";
+    let worker_name = "Worker";
+    let client_wa: string | null = null;
+    let worker_wa: string | null = null;
+
+    if (j.client_id) {
+      const { data: c } = await supabase
+        .from("profiles")
+        .select("full_name, whatsapp_phone")
+        .eq("id", j.client_id)
+        .maybeSingle();
+      if (c?.full_name) client_name = c.full_name;
+      if (c?.whatsapp_phone) client_wa = c.whatsapp_phone;
+    }
+
+    if (j.worker_id) {
+      const { data: w } = await supabase
+        .from("profiles")
+        .select("full_name, whatsapp_phone")
+        .eq("id", j.worker_id)
+        .maybeSingle();
+      if (w?.full_name) worker_name = w.full_name;
+      if (w?.whatsapp_phone) worker_wa = w.whatsapp_phone;
+    }
+
+    const other_whatsapp = uid === j.client_id ? worker_wa : client_wa;
+
+    let myRating: number | null = null;
+    if (j.status === "completed") {
+      const { data: r } = await supabase
+        .from("ratings")
+        .select("rating")
+        .eq("job_id", j.id)
+        .eq("from_user_id", uid)
+        .maybeSingle();
+      if (r?.rating) myRating = r.rating;
+    }
+
+    const otherId = uid === j.client_id ? j.worker_id : j.client_id;
+    let other_avg_rating = 0;
+    let other_rating_count = 0;
+    let other_jobs_done = 0;
+
+    if (otherId) {
+      const trust = await loadTrustStats(otherId);
+      other_avg_rating = trust.avg;
+      other_rating_count = trust.count;
+      other_jobs_done = trust.jobsDone;
+    }
+
+    let payment: Payment | null = null;
+    const { data: pay } = await supabase
+      .from("payments")
+      .select("id, status, wave_reference, amount")
+      .eq("job_id", j.id)
+      .order("paid_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pay) payment = pay as Payment;
+
+    return {
+      ...j,
+      client_name,
+      worker_name,
+      myRating,
+      other_avg_rating,
+      other_rating_count,
+      other_jobs_done,
+      payment,
+      other_whatsapp,
+      is_open: !j.worker_id && (j.status === "open" || j.status === "pending"),
+    };
+  }
+
   async function loadJobs(uid: string) {
     const { data, error: qError } = await supabase
       .from("job_requests")
@@ -108,85 +187,42 @@ export default function JobsPage() {
       return;
     }
 
-    const list = data || [];
     const enriched: Job[] = [];
-
-    for (const j of list) {
-      let client_name = "Client";
-      let worker_name = "Worker";
-      let client_wa: string | null = null;
-      let worker_wa: string | null = null;
-
-      if (j.client_id) {
-        const { data: c } = await supabase
-          .from("profiles")
-          .select("full_name, whatsapp_phone")
-          .eq("id", j.client_id)
-          .maybeSingle();
-        if (c?.full_name) client_name = c.full_name;
-        if (c?.whatsapp_phone) client_wa = c.whatsapp_phone;
-      }
-
-      if (j.worker_id) {
-        const { data: w } = await supabase
-          .from("profiles")
-          .select("full_name, whatsapp_phone")
-          .eq("id", j.worker_id)
-          .maybeSingle();
-        if (w?.full_name) worker_name = w.full_name;
-        if (w?.whatsapp_phone) worker_wa = w.whatsapp_phone;
-      }
-
-      const other_whatsapp = uid === j.client_id ? worker_wa : client_wa;
-
-      let myRating: number | null = null;
-      if (j.status === "completed") {
-        const { data: r } = await supabase
-          .from("ratings")
-          .select("rating")
-          .eq("job_id", j.id)
-          .eq("from_user_id", uid)
-          .maybeSingle();
-        if (r?.rating) myRating = r.rating;
-      }
-
-      const otherId = uid === j.client_id ? j.worker_id : j.client_id;
-      let other_avg_rating = 0;
-      let other_rating_count = 0;
-      let other_jobs_done = 0;
-
-      if (otherId) {
-        const trust = await loadTrustStats(otherId);
-        other_avg_rating = trust.avg;
-        other_rating_count = trust.count;
-        other_jobs_done = trust.jobsDone;
-      }
-
-      let payment: Payment | null = null;
-      const { data: pay } = await supabase
-        .from("payments")
-        .select("id, status, wave_reference, amount")
-        .eq("job_id", j.id)
-        .order("paid_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (pay) payment = pay as Payment;
-
-      enriched.push({
-        ...j,
-        client_name,
-        worker_name,
-        myRating,
-        other_avg_rating,
-        other_rating_count,
-        other_jobs_done,
-        payment,
-        other_whatsapp,
-      });
+    for (const j of data || []) {
+      enriched.push(await enrichJob(j, uid));
     }
-
     setJobs(enriched);
+
+    // Open jobs for verified workers to claim
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, verification_status")
+      .eq("id", uid)
+      .maybeSingle();
+
+    const verified =
+      profile?.role === "worker" &&
+      profile?.verification_status === "verified";
+    setIsVerifiedWorker(!!verified);
+
+    if (verified) {
+      const { data: openRows } = await supabase
+        .from("job_requests")
+        .select("*")
+        .is("worker_id", null)
+        .in("status", ["open", "pending"])
+        .neq("client_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      const openEnriched: Job[] = [];
+      for (const j of openRows || []) {
+        openEnriched.push(await enrichJob(j, uid));
+      }
+      setOpenJobs(openEnriched);
+    } else {
+      setOpenJobs([]);
+    }
   }
 
   useEffect(() => {
@@ -207,6 +243,44 @@ export default function JobsPage() {
 
     init();
   }, []);
+
+  async function claimOpenJob(job: Job) {
+    if (!userId) return;
+    setActingId(job.id);
+    setError("");
+    setMessage("");
+
+    const { data, error: uError } = await supabase
+      .from("job_requests")
+      .update({
+        worker_id: userId,
+        status: "accepted",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id)
+      .is("worker_id", null)
+      .select("id, status, worker_id")
+      .maybeSingle();
+
+    setActingId(null);
+
+    if (uError) {
+      setError(
+        uError.message.includes("policy")
+          ? "Claim blocked by RLS. Allow verified workers to claim open jobs (worker_id null)."
+          : uError.message
+      );
+      return;
+    }
+
+    if (!data) {
+      setError("Job already claimed or update blocked.");
+      return;
+    }
+
+    setMessage("You claimed this job. Client can pay via Wave in the app.");
+    await loadJobs(userId);
+  }
 
   async function updateStatus(
     jobId: string,
@@ -473,6 +547,7 @@ export default function JobsPage() {
       "default" | "success" | "warning" | "secondary" | "destructive"
     > = {
       pending: "warning",
+      open: "warning",
       countered: "warning",
       accepted: "success",
       in_progress: "success",
@@ -573,17 +648,24 @@ export default function JobsPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">My Jobs</h1>
-          <p className="text-sm text-gray-500">Requests, negotiate, pay</p>
+          <p className="text-sm text-gray-500">Post, request, negotiate, pay</p>
         </div>
-        <Link href="/directory">
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Find worker
-          </Button>
-        </Link>
+        <div className="flex gap-2 shrink-0">
+          <Link href="/post-job">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Post job
+            </Button>
+          </Link>
+          <Link href="/directory">
+            <Button size="sm" variant="outline">
+              Find
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {message && (
@@ -595,23 +677,87 @@ export default function JobsPage() {
         <p className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>
       )}
 
-      {jobs.length === 0 ? (
+      {isVerifiedWorker && openJobs.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-semibold text-sm text-gray-700">Open jobs to claim</h2>
+          {openJobs.map((job) => {
+            const fees = job.budget != null ? calcFees(job.budget) : null;
+            return (
+              <div
+                key={job.id}
+                className="rounded-xl border border-green-200 bg-green-50/40 p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold">{job.title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {job.location_area} · Open listing
+                    </p>
+                  </div>
+                  {statusBadge(job.status === "pending" ? "open" : job.status)}
+                </div>
+                <p className="text-sm text-gray-600">{job.description}</p>
+                <div className="flex flex-wrap gap-2 text-xs items-center">
+                  <Badge variant="secondary">{job.skill_needed}</Badge>
+                  {fees && (
+                    <span className="px-2 py-0.5 bg-green-50 text-green-800 rounded font-medium">
+                      {formatGmd(fees.amount)}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  disabled={actingId === job.id}
+                  onClick={() => claimOpenJob(job)}
+                >
+                  {actingId === job.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-1" /> Claim this job
+                      {fees ? ` · ${formatGmd(fees.amount)}` : ""}
+                    </>
+                  )}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {jobs.length === 0 && openJobs.length === 0 ? (
         <div className="rounded-xl border bg-white py-12 text-center">
           <Briefcase className="h-12 w-12 mx-auto text-gray-400 mb-4" />
           <h3 className="font-semibold text-lg">No jobs yet</h3>
-          <p className="text-sm text-gray-500 mt-1 mb-6">
-            When you request a worker, the job will appear here for both of you.
+          <p className="text-sm text-gray-500 mt-1 mb-6 px-4">
+            Post an open job for workers to claim, or request a specific person
+            from Find.
           </p>
-          <Link href="/directory">
-            <Button>Find a Worker</Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center px-6">
+            <Link href="/post-job">
+              <Button className="w-full sm:w-auto">Post a Job</Button>
+            </Link>
+            <Link href="/directory">
+              <Button variant="outline" className="w-full sm:w-auto">
+                Find a Worker
+              </Button>
+            </Link>
+          </div>
         </div>
-      ) : (
+      ) : jobs.length > 0 ? (
         <div className="space-y-4">
+          <h2 className="font-semibold text-sm text-gray-700">Your jobs</h2>
           {jobs.map((job) => {
             const isWorker = job.worker_id === userId;
             const isClient = job.client_id === userId;
-            const otherLabel = isWorker ? job.client_name : job.worker_name;
+            const isOpenUnclaimed =
+              isClient && !job.worker_id && (job.status === "open" || job.status === "pending");
+            const otherLabel = isWorker
+              ? job.client_name
+              : job.worker_id
+                ? job.worker_name
+                : "Open — waiting for worker";
             const fees = job.budget != null ? calcFees(job.budget) : null;
             const payStatus = job.payment?.status;
             const canComplete =
@@ -631,32 +777,45 @@ export default function JobsPage() {
                   <div>
                     <h3 className="font-semibold">{job.title}</h3>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {isWorker
-                        ? `From ${job.client_name}`
-                        : `To ${job.worker_name}`}
-                      {" · "}
-                      {job.location_area}
+                      {isOpenUnclaimed
+                        ? `Open listing · ${job.location_area}`
+                        : isWorker
+                          ? `From ${job.client_name}`
+                          : `To ${job.worker_name}`}
+                      {!isOpenUnclaimed && ` · ${job.location_area}`}
                     </p>
                   </div>
-                  {statusBadge(job.status)}
+                  {statusBadge(
+                    isOpenUnclaimed && job.status === "pending"
+                      ? "open"
+                      : job.status
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                  <span className="font-medium text-gray-800">{otherLabel}</span>
-                  {(job.other_rating_count || 0) > 0 ? (
-                    <span className="flex items-center gap-0.5 text-amber-600">
-                      <Star className="h-3 w-3 fill-current" />
-                      {job.other_avg_rating}
-                      <span className="text-gray-400">
-                        ({job.other_rating_count})
+                {!isOpenUnclaimed && (
+                  <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                    <span className="font-medium text-gray-800">{otherLabel}</span>
+                    {(job.other_rating_count || 0) > 0 ? (
+                      <span className="flex items-center gap-0.5 text-amber-600">
+                        <Star className="h-3 w-3 fill-current" />
+                        {job.other_avg_rating}
+                        <span className="text-gray-400">
+                          ({job.other_rating_count})
+                        </span>
                       </span>
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">No ratings yet</span>
-                  )}
-                  <span className="text-gray-400">·</span>
-                  <span>{job.other_jobs_done || 0} jobs done</span>
-                </div>
+                    ) : (
+                      <span className="text-gray-400">No ratings yet</span>
+                    )}
+                    <span className="text-gray-400">·</span>
+                    <span>{job.other_jobs_done || 0} jobs done</span>
+                  </div>
+                )}
+
+                {isOpenUnclaimed && (
+                  <p className="text-xs text-amber-800 bg-amber-50 rounded-lg p-2">
+                    Waiting for a verified worker to claim this job.
+                  </p>
+                )}
 
                 <p className="text-sm text-gray-600">{job.description}</p>
 
@@ -705,7 +864,7 @@ export default function JobsPage() {
                     </div>
                   )}
 
-                {job.status === "pending" && isWorker && (
+                {job.status === "pending" && isWorker && job.worker_id && (
                   <div className="space-y-2 pt-1">
                     <div className="flex gap-2">
                       <Button
@@ -754,17 +913,18 @@ export default function JobsPage() {
                   </div>
                 )}
 
-                {job.status === "pending" && isClient && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    disabled={actingId === job.id}
-                    onClick={() => updateStatus(job.id, "cancelled")}
-                  >
-                    Cancel request
-                  </Button>
-                )}
+                {(job.status === "pending" || job.status === "open") &&
+                  isClient && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      disabled={actingId === job.id}
+                      onClick={() => updateStatus(job.id, "cancelled")}
+                    >
+                      Cancel
+                    </Button>
+                  )}
 
                 {waitingOnMe && (
                   <div className="space-y-2 border-t pt-3">
@@ -1002,7 +1162,7 @@ export default function JobsPage() {
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
