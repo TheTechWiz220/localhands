@@ -49,11 +49,25 @@ export default function RequestWorkerPage() {
 
       setClientId(user.id);
 
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        role: "client",
-        updated_at: new Date().toISOString(),
-      });
+      // Ensure profile exists, but never demote admin/worker
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from("profiles").insert({
+          id: user.id,
+          role: "client",
+          updated_at: new Date().toISOString(),
+        });
+      } else if (!existing.role || existing.role === "") {
+        await supabase
+          .from("profiles")
+          .update({ role: "client", updated_at: new Date().toISOString() })
+          .eq("id", user.id);
+      }
 
       const { data: worker } = await supabase
         .from("profiles")
