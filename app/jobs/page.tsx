@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { calcFees, formatGmd, PLATFORM_FEE_PERCENT } from "@/lib/pricing";
+import { ClientTrustLine } from "@/components/client-trust-line";
 
 type Payment = {
   id: string;
@@ -39,6 +40,10 @@ type Job = {
   payment?: Payment | null;
   other_whatsapp?: string | null;
   is_open?: boolean;
+  client_avg_rating?: number;
+  client_rating_count?: number;
+  client_jobs_done?: number;
+  client_member_since?: string | null;
 };
 
 export default function JobsPage() {
@@ -160,6 +165,23 @@ export default function JobsPage() {
 
     if (pay) payment = pay as Payment;
 
+    let client_avg_rating = 0;
+    let client_rating_count = 0;
+    let client_jobs_done = 0;
+    let client_member_since: string | null = null;
+    if (j.client_id) {
+      const cTrust = await loadTrustStats(j.client_id);
+      client_avg_rating = cTrust.avg;
+      client_rating_count = cTrust.count;
+      client_jobs_done = cTrust.jobsDone;
+      const { data: cProf } = await supabase
+        .from("profiles")
+        .select("created_at")
+        .eq("id", j.client_id)
+        .maybeSingle();
+      if (cProf?.created_at) client_member_since = cProf.created_at;
+    }
+
     return {
       ...j,
       client_name,
@@ -171,6 +193,10 @@ export default function JobsPage() {
       payment,
       other_whatsapp,
       is_open: !j.worker_id && (j.status === "open" || j.status === "pending"),
+      client_avg_rating,
+      client_rating_count,
+      client_jobs_done,
+      client_member_since,
     };
   }
 
@@ -699,6 +725,12 @@ export default function JobsPage() {
                 <div className="flex flex-wrap gap-2 text-xs items-center">
                   <Badge variant="secondary">{job.skill_needed}</Badge>
                 </div>
+                <ClientTrustLine
+                  avgRating={job.client_avg_rating}
+                  ratingCount={job.client_rating_count}
+                  jobsDone={job.client_jobs_done}
+                  memberSince={job.client_member_since}
+                />
                 {fees && (
                   <div className="rounded-lg bg-white border border-green-100 p-3 text-sm space-y-1">
                     <p className="font-semibold text-green-900">
