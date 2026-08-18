@@ -101,20 +101,20 @@ export default async function WorkerPage({
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-4 items-center">
         {worker.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={worker.avatar_url}
             alt={worker.full_name}
-            className="h-20 w-20 rounded-full object-cover border"
+            className="h-20 w-20 rounded-full object-cover border shrink-0"
           />
         ) : (
-          <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl">
+          <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl shrink-0">
             {worker.full_name[0]}
           </div>
         )}
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold">{worker.full_name}</h1>
             {isVerified && (
@@ -125,10 +125,10 @@ export default async function WorkerPage({
             )}
           </div>
           <div className="flex items-center gap-1 text-gray-500 mt-1">
-            <MapPin className="h-4 w-4" />
+            <MapPin className="h-4 w-4 shrink-0" />
             {worker.location_area}
           </div>
-          <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
+          <div className="flex items-center gap-x-2 gap-y-1 mt-2 text-sm flex-wrap">
             {ratingCount > 0 ? (
               <span className="flex items-center gap-1 text-amber-600 font-medium">
                 <Star className="h-4 w-4 fill-current" />
@@ -140,18 +140,22 @@ export default async function WorkerPage({
             ) : (
               <span className="text-gray-400">No ratings yet</span>
             )}
+            <span className="text-gray-300">·</span>
             <span className="flex items-center gap-1 text-gray-500">
               <Briefcase className="h-3.5 w-3.5" />
               {jobsDone} jobs completed
             </span>
             {worker.joined_at && (
-              <span className="text-gray-400">
-                · Joined{" "}
-                {new Date(worker.joined_at).toLocaleDateString("en-GB", {
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
+              <>
+                <span className="text-gray-300">·</span>
+                <span className="text-gray-400">
+                  Joined{" "}
+                  {new Date(worker.joined_at).toLocaleDateString("en-GB", {
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              </>
             )}
           </div>
         </div>
