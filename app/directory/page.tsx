@@ -32,6 +32,7 @@ type Worker = {
   rating: number;
   rating_count: number;
   jobs_done: number;
+  joined_at: string | null;
 };
 
 export default function DirectoryPage() {
@@ -49,7 +50,7 @@ export default function DirectoryPage() {
       const { data } = await supabase
         .from("profiles")
         .select(
-          "id, full_name, location_area, bio, verification_status, availability, avatar_url"
+          "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at"
         )
         .eq("role", "worker")
         .eq("verification_status", "verified")
@@ -102,6 +103,7 @@ export default function DirectoryPage() {
             rating,
             rating_count: ratingRows?.length || 0,
             jobs_done: count || 0,
+            joined_at: p.created_at || null,
           } as Worker;
         })
       );
@@ -120,16 +122,12 @@ export default function DirectoryPage() {
       const areaOk =
         area === "All areas" ||
         w.location_area.toLowerCase() === area.toLowerCase();
-
       if (!areaOk) return false;
       if (!q) return true;
-
       const inName = w.full_name.toLowerCase().includes(q);
-      const inBio = w.bio.toLowerCase().includes(q);
       const inSkill = w.skills.some((s) => s.toLowerCase().includes(q));
-      const inArea = w.location_area.toLowerCase().includes(q);
-
-      return inName || inBio || inSkill || inArea;
+      const inBio = w.bio.toLowerCase().includes(q);
+      return inName || inSkill || inBio;
     });
   }, [workers, query, area]);
 
@@ -147,17 +145,16 @@ export default function DirectoryPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
+            placeholder="Search name or skill..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search skills or name..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+            className="w-full pl-10 pr-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
           />
         </div>
-
         <select
           value={area}
           onChange={(e) => setArea(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+          className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600 bg-white"
         >
           {AREAS.map((a) => (
             <option key={a} value={a}>
@@ -168,64 +165,39 @@ export default function DirectoryPage() {
       </div>
 
       {loading ? (
-        <div className="py-12 text-center">
+        <div className="py-16 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600 mb-3" />
-          <p className="text-sm text-gray-500">Loading workers...</p>
+          <p className="text-gray-500 text-sm">Loading workers...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border bg-white py-12 text-center">
+          <p className="font-medium">No workers match</p>
+          <p className="text-sm text-gray-500 mt-1">Try another area or search</p>
         </div>
       ) : (
-        <>
-          <p className="text-sm text-gray-500">
-            {filtered.length} verified worker
-            {filtered.length === 1 ? "" : "s"}
-            {(query || area !== "All areas") && workers.length !== filtered.length
-              ? ` (of ${workers.length})`
-              : ""}
-          </p>
-
-          {filtered.length === 0 ? (
-            <div className="rounded-xl border bg-white py-10 text-center px-4">
-              <p className="font-medium">No workers match</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Try another skill, name, or area.
-              </p>
-              {(query || area !== "All areas") && (
-                <button
-                  type="button"
-                  className="text-sm text-green-700 mt-3 hover:underline"
-                  onClick={() => {
-                    setQuery("");
-                    setArea("All areas");
-                  }}
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filtered.map((w) => (
-                <Link key={w.id} href={`/worker/${w.id}`}>
-                  <div className="rounded-xl border bg-white p-4 hover:shadow-md transition-shadow">
-                    <div className="flex gap-3">
-                      {w.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={w.avatar_url}
-                          alt={w.full_name}
-                          className="h-14 w-14 rounded-full object-cover border"
-                        />
-                      ) : (
-                        <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg">
-                          {w.full_name[0]}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+        <div className="space-y-3">
+          {filtered.map((w) => (
+            <Link key={w.id} href={`/worker/${w.id}`}>
+              <div className="rounded-xl border bg-white p-4 hover:border-green-300 transition-colors">
+                <div className="flex gap-3">
+                  {w.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={w.avatar_url}
+                      alt={w.full_name}
+                      className="h-14 w-14 rounded-full object-cover border shrink-0"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg shrink-0">
+                      {w.full_name[0]}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="font-semibold">{w.full_name}</h3>
-                          <Badge variant="success" className="text-[10px]">
-                            <ShieldCheck className="h-3 w-3 mr-0.5 inline" />
-                            Verified
-                          </Badge>
+                          <ShieldCheck className="h-4 w-4 text-green-600" />
                         </div>
                         <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
                           <MapPin className="h-3.5 w-3.5" />
@@ -240,7 +212,7 @@ export default function DirectoryPage() {
                             ))}
                           </div>
                         )}
-                        <div className="flex items-center gap-2 mt-1 text-sm">
+                        <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
                           {w.rating > 0 ? (
                             <span className="flex items-center gap-0.5 text-amber-600">
                               <Star className="h-3.5 w-3.5 fill-current" />
@@ -255,15 +227,24 @@ export default function DirectoryPage() {
                             <span className="text-gray-400 text-xs">No ratings</span>
                           )}
                           <span className="text-gray-500">· {w.jobs_done} jobs</span>
+                          {w.joined_at && (
+                            <span className="text-gray-400">
+                              · Joined{" "}
+                              {new Date(w.joined_at).toLocaleDateString("en-GB", {
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );
