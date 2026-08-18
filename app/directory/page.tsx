@@ -179,7 +179,7 @@ export default function DirectoryPage() {
           {filtered.map((w) => (
             <Link key={w.id} href={`/worker/${w.id}`}>
               <div className="rounded-xl border bg-white p-4 hover:border-green-300 transition-colors">
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
                   {w.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -193,51 +193,47 @@ export default function DirectoryPage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="font-semibold">{w.full_name}</h3>
-                          <ShieldCheck className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {w.location_area}
-                        </div>
-                        {w.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {w.skills.slice(0, 3).map((s) => (
-                              <Badge key={s} variant="secondary">
-                                {s}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
-                          {w.rating > 0 ? (
-                            <span className="flex items-center gap-0.5 text-amber-600">
-                              <Star className="h-3.5 w-3.5 fill-current" />
-                              {w.rating}
-                              {w.rating_count > 0 && (
-                                <span className="text-gray-400">
-                                  ({w.rating_count})
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">No ratings</span>
-                          )}
-                          <span className="text-gray-500">· {w.jobs_done} jobs</span>
-                          {w.joined_at && (
-                            <span className="text-gray-400">
-                              · Joined{" "}
-                              {new Date(w.joined_at).toLocaleDateString("en-GB", {
-                                month: "short",
-                                year: "numeric",
-                              })}
-                            </span>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="font-semibold">{w.full_name}</h3>
+                      <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      {w.location_area}
+                    </div>
+                    {w.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {w.skills.slice(0, 3).map((s) => (
+                          <Badge key={s} variant="secondary">
+                            {s}
+                          </Badge>
+                        ))}
                       </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
+                      {w.rating > 0 ? (
+                        <span className="flex items-center gap-0.5 text-amber-600">
+                          <Star className="h-3.5 w-3.5 fill-current" />
+                          {w.rating}
+                          {w.rating_count > 0 && (
+                            <span className="text-gray-400">
+                              ({w.rating_count})
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">No ratings</span>
+                      )}
+                      <span className="text-gray-500">· {w.jobs_done} jobs</span>
+                      {w.joined_at && (
+                        <span className="text-gray-400">
+                          · Joined{" "}
+                          {new Date(w.joined_at).toLocaleDateString("en-GB", {
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
