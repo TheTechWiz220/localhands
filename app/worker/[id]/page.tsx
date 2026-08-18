@@ -30,7 +30,7 @@ export default async function WorkerPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, location_area, bio, verification_status, availability, avatar_url"
+      "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at"
     )
     .eq("id", id)
     .maybeSingle();
@@ -88,6 +88,7 @@ export default async function WorkerPage({
       avatar_url: profile.avatar_url || null,
       skills: (skills || []).map((s: any) => s.skill),
       verification_status: profile.verification_status,
+      joined_at: profile.created_at || null,
     };
     proofUrls = (media || []).map((m: any) => m.media_url);
   } else {
@@ -143,6 +144,15 @@ export default async function WorkerPage({
               <Briefcase className="h-3.5 w-3.5" />
               {jobsDone} jobs completed
             </span>
+            {worker.joined_at && (
+              <span className="text-gray-400">
+                · Joined{" "}
+                {new Date(worker.joined_at).toLocaleDateString("en-GB", {
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -161,14 +171,9 @@ export default async function WorkerPage({
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-white p-4">
-        <h3 className="font-semibold mb-2">About</h3>
-        <p className="text-sm text-gray-600">{worker.bio}</p>
-      </div>
-
       {worker.skills?.length > 0 && (
-        <div className="rounded-xl border bg-white p-4">
-          <h3 className="font-semibold mb-2">Skills</h3>
+        <div>
+          <h2 className="font-semibold mb-2">Skills</h2>
           <div className="flex flex-wrap gap-2">
             {worker.skills.map((s: string) => (
               <Badge key={s} variant="secondary">
@@ -179,48 +184,51 @@ export default async function WorkerPage({
         </div>
       )}
 
-      <div className="rounded-xl border bg-white p-4">
-        <h3 className="font-semibold mb-2">Proof of Work</h3>
-        <ProofGallery urls={proofUrls} />
+      <div>
+        <h2 className="font-semibold mb-2">About</h2>
+        <p className="text-sm text-gray-600 leading-relaxed">{worker.bio}</p>
       </div>
 
-      <div className="rounded-xl border bg-white p-4 space-y-3">
-        <h3 className="font-semibold">Reviews</h3>
-        <p className="text-xs text-gray-400">
-          Client names are private. Only ratings and comments are public.
-        </p>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No reviews yet. Complete jobs to build trust.
-          </p>
-        ) : (
-          reviews.map((r, i) => (
-            <div key={i} className="border-t pt-3 first:border-0 first:pt-0">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-gray-600">{r.from_name}</p>
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <Star
-                      key={n}
-                      className={
-                        n <= r.rating
-                          ? "h-3.5 w-3.5 fill-amber-500 text-amber-500"
-                          : "h-3.5 w-3.5 text-gray-300"
-                      }
-                    />
-                  ))}
+      {proofUrls.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-2">Proof of work</h2>
+          <p className="text-xs text-gray-500 mb-2">Tap a photo to enlarge</p>
+          <ProofGallery urls={proofUrls} />
+        </div>
+      )}
+
+      {reviews.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-3">Reviews</h2>
+          <div className="space-y-3">
+            {reviews.map((r, i) => (
+              <div key={i} className="rounded-lg border bg-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 text-amber-600">
+                    {Array.from({ length: 5 }).map((_, n) => (
+                      <Star
+                        key={n}
+                        className={
+                          n < r.rating
+                            ? "h-3.5 w-3.5 fill-current"
+                            : "h-3.5 w-3.5 text-gray-300"
+                        }
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </span>
                 </div>
+                {r.comment && (
+                  <p className="text-sm text-gray-600 mt-1.5">{r.comment}</p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">{r.from_name}</p>
               </div>
-              {r.comment && (
-                <p className="text-sm text-gray-600 mt-1">{r.comment}</p>
-              )}
-              <p className="text-xs text-gray-400 mt-1">
-                {new Date(r.created_at).toLocaleDateString()}
-              </p>
-            </div>
-          ))
-        )}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
