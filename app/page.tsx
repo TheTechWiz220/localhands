@@ -157,7 +157,7 @@ export default function HomePage() {
               </Button>
             </Link>
             <Link href="/auth">
-              <Button size="sm" variant="ghost">
+              <Button size="sm" variant="outline">
                 Sign in
               </Button>
             </Link>
