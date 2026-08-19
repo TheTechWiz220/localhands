@@ -41,6 +41,7 @@ type ListedWorker = {
   avatar_url: string | null;
   skills: string[];
   created_at: string | null;
+  id_verified?: boolean;
 };
 
 type ListedClient = {
@@ -88,6 +89,7 @@ export default function AdminPage() {
   const [verifiedList, setVerifiedList] = useState<ListedWorker[]>([]);
   const [clientsList, setClientsList] = useState<ListedClient[]>([]);
   const [workerSearch, setWorkerSearch] = useState("");
+  const [idChecked, setIdChecked] = useState<Record<string, boolean>>({});
   const [clientSearch, setClientSearch] = useState("");
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -146,7 +148,7 @@ export default function AdminPage() {
     const { data: profiles, error } = await supabase
       .from("profiles")
       .select(
-        "id, full_name, location_area, bio, verification_status, avatar_url, created_at"
+        "id, full_name, location_area, bio, verification_status, avatar_url, created_at, id_verified"
       )
       .eq("role", "worker")
       .eq("verification_status", "verified")
@@ -174,6 +176,7 @@ export default function AdminPage() {
         avatar_url: p.avatar_url,
         skills: (skills || []).map((s: any) => s.skill),
         created_at: p.created_at,
+        id_verified: !!p.id_verified,
       });
     }
 
@@ -181,7 +184,6 @@ export default function AdminPage() {
   }
 
   async function loadClients() {
-    // Clients by role, plus anyone who has posted a job (even if also a worker)
     const { data: byRole } = await supabase
       .from("profiles")
       .select("id, full_name, location_area, avatar_url, created_at, role")
@@ -424,13 +426,31 @@ export default function AdminPage() {
     setMessage("");
     setErrorMsg("");
 
+    if (status === "verified" && !idChecked[workerId]) {
+      setActingId(null);
+      setErrorMsg(
+        "Confirm ID verified in person before approving this worker."
+      );
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      verification_status: status,
+      is_verified: status === "verified",
+      updated_at: new Date().toISOString(),
+    };
+    if (status === "verified") {
+      payload.id_verified = true;
+      payload.id_verified_at = new Date().toISOString();
+    }
+    if (status === "rejected") {
+      payload.id_verified = false;
+      payload.id_verified_at = null;
+    }
+
     const { data, error } = await supabase
       .from("profiles")
-      .update({
-        verification_status: status,
-        is_verified: status === "verified",
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq("id", workerId)
       .select("id, verification_status")
       .maybeSingle();
@@ -713,11 +733,30 @@ export default function AdminPage() {
                     </div>
                   )}
 
+                  <label className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!idChecked[w.id]}
+                      onChange={(e) =>
+                        setIdChecked((prev) => ({
+                          ...prev,
+                          [w.id]: e.target.checked,
+                        }))
+                      }
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+                    />
+                    <span className="text-xs text-gray-700 leading-snug">
+                      <strong>ID verified in person</strong> — I checked a valid
+                      national ID or passport and the photo matches this applicant.
+                      Worker is 18+.
+                    </span>
+                  </label>
+
                   <div className="flex gap-2 pt-1">
                     <Button
                       size="sm"
                       className="flex-1"
-                      disabled={actingId === w.id}
+                      disabled={actingId === w.id || !idChecked[w.id]}
                       onClick={() => setStatus(w.id, "verified")}
                     >
                       {actingId === w.id ? (
@@ -798,6 +837,7 @@ export default function AdminPage() {
                     </h3>
                     <p className="text-xs text-gray-500">
                       {w.location_area || "Area not set"}
+                      {w.id_verified ? " · ID checked" : ""}
                     </p>
                   </div>
                   <Link
