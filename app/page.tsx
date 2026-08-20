@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,10 +9,21 @@ import {
   Briefcase,
   UserPlus,
   ShieldCheck,
-  ExternalLink,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
+  const [signedIn, setSignedIn] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setSignedIn(!!user);
+      setReady(true);
+    });
+  }, []);
+
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
@@ -67,27 +81,34 @@ export default function HomePage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
-        <Link href="/auth" className="flex-1">
-          <Button className="w-full">Sign in / Create account</Button>
-        </Link>
-        <Link href="/directory" className="flex-1">
-          <Button variant="outline" className="w-full">
-            Browse directory
-          </Button>
-        </Link>
+        {ready && signedIn ? (
+          <>
+            <Link href="/profile" className="flex-1">
+              <Button className="w-full">My profile</Button>
+            </Link>
+            <Link href="/directory" className="flex-1">
+              <Button variant="outline" className="w-full">
+                Browse directory
+              </Button>
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link href="/auth" className="flex-1">
+              <Button className="w-full">Sign in / Create account</Button>
+            </Link>
+            <Link href="/directory" className="flex-1">
+              <Button variant="outline" className="w-full">
+                Browse directory
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
 
       <p className="text-center text-xs text-gray-400">
-        <Link
-          href="/welcome"
-          className="inline-flex items-center gap-1 hover:text-green-700"
-        >
-          About LocalHands & app stores
-          <ExternalLink className="h-3 w-3" />
-        </Link>
-        {" · "}
         <Link href="/privacy" className="hover:text-green-700">
-          Privacy
+          Privacy Policy
         </Link>
       </p>
     </div>
