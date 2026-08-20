@@ -230,13 +230,17 @@ export default function HomePage() {
         <p className="text-xs text-gray-500">
           A product of The Techwiz · Empowering Your Digital Potential
         </p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-400 space-x-2">
           <a
             href="mailto:thetechwiz220@gmail.com"
             className="hover:text-green-700"
           >
             thetechwiz220@gmail.com
           </a>
+          <span>·</span>
+          <Link href="/privacy" className="hover:text-green-700">
+            Privacy Policy
+          </Link>
         </p>
       </footer>
     </div>
