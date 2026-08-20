@@ -1,6 +1,6 @@
 /* LocalHands minimal service worker */
 const CACHE = "localhands-v1";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon.svg", "/privacy"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
