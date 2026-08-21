@@ -1,5 +1,5 @@
 /* LocalHands minimal service worker */
-const CACHE = "localhands-v1";
+const CACHE = "localhands-v2";
 const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon.svg", "/privacy"];
 
 self.addEventListener("install", (event) => {
@@ -37,14 +37,13 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.webmanifest") {
     event.respondWith(
-      caches.match(req).then((cached) =>
-        cached ||
-        fetch(req).then((res) => {
+      fetch(req)
+        .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
           return res;
         })
-      )
+        .catch(() => caches.match(req))
     );
   }
 });
