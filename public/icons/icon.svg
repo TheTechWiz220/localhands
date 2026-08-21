@@ -1,20 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <!-- App icon: green tile + same Lucide Hand as marketing/header -->
-  <rect width="512" height="512" rx="108" fill="#15803d"/>
-  <!-- Centered in maskable safe zone; white stroke matches in-app Hand icon -->
-  <g
-    transform="translate(256 270)"
-    fill="none"
-    stroke="#ffffff"
-    stroke-width="16"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  >
-    <g transform="scale(12.2) translate(-12 -13)">
-      <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/>
-      <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/>
-      <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/>
-      <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
-    </g>
+  <rect width="512" height="512" fill="#15803d"/>
+  <g fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M188 290 L188 168"/>
+    <path d="M242 278 L242 128"/>
+    <path d="M296 262 L296 128"/>
+    <path d="M348 210 C390 200 400 230 400 270 L400 330"/>
+    <path d="M188 290 C175 330 200 380 270 395 C330 408 375 375 400 340"/>
+    <path d="M188 290 L242 278 L296 262 L348 228"/>
   </g>
 </svg>
