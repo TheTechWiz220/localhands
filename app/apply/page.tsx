@@ -267,8 +267,8 @@ export default function ApplyPage() {
           <h1 className="text-2xl font-bold">Application submitted</h1>
           <p className="text-gray-500 mt-2">
             Your profile is under review. You can still add more proof photos
-            from your Profile page. We will check your ID in person before
-            approval.
+            from Profile. We check ID in person before approval so clients can
+            trust the directory.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -286,10 +286,10 @@ export default function ApplyPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Become a LocalHands Worker</h1>
+        <h1 className="text-2xl font-bold">Become a LocalHands worker</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Fill in your details and add photos of completed work for verification.
-          ID will be checked in person before you are approved.
+          Show your skills and proof of work. After ID check in person, you
+          appear in the directory for clients across The Gambia.
         </p>
       </div>
 
@@ -306,13 +306,13 @@ export default function ApplyPage() {
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">Area *</label>
+          <label className="text-sm font-medium mb-1.5 block">Your area *</label>
           <select
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
           >
-            <option value="">Select your area</option>
+            <option value="">Where do you mainly work?</option>
             {AREAS.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -379,7 +379,7 @@ export default function ApplyPage() {
           <label className="text-sm font-medium mb-1.5 block">About you</label>
           <textarea
             rows={3}
-            placeholder="Briefly describe your experience..."
+            placeholder="e.g. 5 years phone repair in Serrekunda. Available weekdays..."
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600 resize-none"
@@ -391,8 +391,8 @@ export default function ApplyPage() {
             Proof of work (photos)
           </label>
           <p className="text-xs text-gray-500 mb-2">
-            Upload photos of jobs you have completed. Helps admins verify you
-            faster. Up to {MAX_FILES} images, max {MAX_SIZE_MB}MB each.
+            Photos of jobs you have finished help us verify you faster. Up to{" "}
+            {MAX_FILES} images, max {MAX_SIZE_MB}MB each.
           </p>
 
           <input
@@ -445,7 +445,7 @@ export default function ApplyPage() {
           />
           <span className="text-sm text-gray-700">
             I confirm that I am <strong>18 years or older</strong>. LocalHands
-            will review my ID in person before approval.
+            will review my national ID in person before approval.
           </span>
         </label>
 
