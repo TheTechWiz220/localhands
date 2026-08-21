@@ -15,8 +15,8 @@ export const metadata: Metadata = {
     title: "LocalHands",
   },
   icons: {
-    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/icon.svg" }],
+    icon: [{ url: "/icon", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/apple-icon", type: "image/png", sizes: "180x180" }],
   },
   other: {
     "mobile-web-app-capable": "yes",
