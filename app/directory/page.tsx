@@ -5,22 +5,7 @@ import { Search, MapPin, Star, ShieldCheck, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-
-const AREAS = [
-  "All areas",
-  "Kololi",
-  "Brusubi",
-  "Bijilo",
-  "Senegambia",
-  "Bakau",
-  "Fajara",
-  "Serrekunda",
-  "Kanifing",
-  "Brikama",
-  "Banjul",
-  "Basse",
-  "Other",
-];
+import { AREA_FILTERS } from "@/lib/skills";
 
 type Worker = {
   id: string;
@@ -98,7 +83,7 @@ export default function DirectoryPage() {
             id: p.id,
             full_name: p.full_name || "Worker",
             id_verified: !!(p as any).id_verified,
-            location_area: p.location_area || "Gambia",
+            location_area: p.location_area || "The Gambia",
             bio: p.bio || "",
             avatar_url: p.avatar_url || null,
             skills: (skills || []).map((s: any) => s.skill),
@@ -138,7 +123,7 @@ export default function DirectoryPage() {
       <div>
         <h1 className="text-2xl font-bold">Find a Worker</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Verified skilled people near you
+          Verified skilled people across Greater Banjul and beyond
         </p>
       </div>
 
@@ -147,7 +132,7 @@ export default function DirectoryPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search name or skill..."
+            placeholder="Search name or skill (e.g. solar, phone repair)..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-10 pr-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
@@ -158,7 +143,7 @@ export default function DirectoryPage() {
           onChange={(e) => setArea(e.target.value)}
           className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-600 bg-white"
         >
-          {AREAS.map((a) => (
+          {AREA_FILTERS.map((a) => (
             <option key={a} value={a}>
               {a}
             </option>
@@ -172,9 +157,17 @@ export default function DirectoryPage() {
           <p className="text-gray-500 text-sm">Loading workers...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border bg-white py-12 text-center">
-          <p className="font-medium">No workers match</p>
-          <p className="text-sm text-gray-500 mt-1">Try another area or search</p>
+        <div className="rounded-xl border bg-white py-12 text-center px-4">
+          <p className="font-medium">No workers match yet</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Try another area, or post a job so verified workers can claim it.
+          </p>
+          <Link
+            href="/post-job"
+            className="inline-block mt-3 text-sm text-green-700 font-medium hover:underline"
+          >
+            Post a job →
+          </Link>
         </div>
       ) : (
         <div className="space-y-3">
@@ -199,7 +192,10 @@ export default function DirectoryPage() {
                       <h3 className="font-semibold">{w.full_name}</h3>
                       <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
                       {w.id_verified && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0"
+                        >
                           ID checked
                         </Badge>
                       )}
@@ -229,7 +225,7 @@ export default function DirectoryPage() {
                           )}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">No ratings</span>
+                        <span className="text-gray-400 text-xs">No ratings yet</span>
                       )}
                       <span className="text-gray-500">· {w.jobs_done} jobs</span>
                       {w.joined_at && (
