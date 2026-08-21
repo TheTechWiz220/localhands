@@ -1,6 +1,6 @@
 /* LocalHands minimal service worker */
-const CACHE = "localhands-v2";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon.svg", "/privacy"];
+const CACHE = "localhands-v3";
+const PRECACHE = ["/", "/manifest.webmanifest", "/icon", "/privacy"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -35,7 +35,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.webmanifest") {
+  if (
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/icon" ||
+    url.pathname === "/apple-icon" ||
+    url.pathname === "/manifest.webmanifest"
+  ) {
     event.respondWith(
       fetch(req)
         .then((res) => {
