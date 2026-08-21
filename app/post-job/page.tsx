@@ -42,7 +42,6 @@ export default function PostJobPage() {
 
       setClientId(user.id);
 
-      // Ensure profile exists, but never demote admin/worker
       const { data: existing } = await supabase
         .from("profiles")
         .select("id, role")
@@ -61,7 +60,6 @@ export default function PostJobPage() {
           .update({ role: "client", updated_at: new Date().toISOString() })
           .eq("id", user.id);
       }
-      // admin / worker roles left untouched
 
       setLoading(false);
     }
@@ -165,8 +163,8 @@ export default function PostJobPage() {
         <div>
           <h1 className="text-2xl font-bold">Job posted</h1>
           <p className="text-gray-500 mt-2">
-            Workers can see this open job and claim it. You can also request a
-            specific person from Find.
+            Verified workers can see this open job and claim it. You can also
+            request someone specific from Find.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -186,7 +184,7 @@ export default function PostJobPage() {
       <div>
         <h1 className="text-2xl font-bold">Post a Job</h1>
         <p className="text-sm text-gray-500">
-          Open listing — any matching worker can claim it. Or pick someone from{" "}
+          Open listing — matching workers can claim it. Or pick someone from{" "}
           <Link href="/directory" className="text-green-700 font-medium">
             Find
           </Link>
@@ -199,7 +197,7 @@ export default function PostJobPage() {
           <label className="text-sm font-medium mb-1.5 block">Title *</label>
           <input
             type="text"
-            placeholder="e.g. Fix Samsung screen"
+            placeholder="e.g. Fix Samsung screen in Serrekunda"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
@@ -223,13 +221,13 @@ export default function PostJobPage() {
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">Location *</label>
+          <label className="text-sm font-medium mb-1.5 block">Area *</label>
           <select
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
           >
-            <option value="">Select area</option>
+            <option value="">Where is the job?</option>
             {AREAS.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -242,7 +240,7 @@ export default function PostJobPage() {
           <label className="text-sm font-medium mb-1.5 block">Description *</label>
           <textarea
             rows={4}
-            placeholder="What needs to be done, when, any details..."
+            placeholder="What needs doing, when you need them, any details..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600 resize-none"
@@ -259,6 +257,10 @@ export default function PostJobPage() {
             onChange={(e) => setBudget(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Prices stay in-app. After accept, pay with Wave (or Afrimoney) and
+            record the reference — not off the platform.
+          </p>
         </div>
 
         {fees && (
@@ -269,7 +271,8 @@ export default function PostJobPage() {
               Worker receives: {formatGmd(fees.workerGets)}
             </p>
             <p className="text-gray-500 text-xs">
-              Platform fee ({PLATFORM_FEE_PERCENT}%): {formatGmd(fees.fee)}
+              LocalHands fee ({PLATFORM_FEE_PERCENT}%): {formatGmd(fees.fee)} —
+              shown before anyone accepts
             </p>
           </div>
         )}
