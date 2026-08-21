@@ -29,7 +29,7 @@ export default function HomePage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-gray-900">LocalHands</h1>
         <p className="text-sm text-gray-500">
-          Verified skilled workers in The Gambia
+          Verified skilled workers across The Gambia
         </p>
       </div>
 
@@ -40,7 +40,7 @@ export default function HomePage() {
         >
           <Search className="h-6 w-6 text-green-700" />
           <p className="font-semibold text-sm">Find a worker</p>
-          <p className="text-xs text-gray-500">Browse verified skills</p>
+          <p className="text-xs text-gray-500">Browse verified skills near you</p>
         </Link>
         <Link
           href="/post-job"
@@ -48,7 +48,7 @@ export default function HomePage() {
         >
           <ClipboardList className="h-6 w-6 text-green-700" />
           <p className="font-semibold text-sm">Post a job</p>
-          <p className="text-xs text-gray-500">Open job for workers</p>
+          <p className="text-xs text-gray-500">Open work for people to claim</p>
         </Link>
         <Link
           href="/jobs"
@@ -56,7 +56,7 @@ export default function HomePage() {
         >
           <Briefcase className="h-6 w-6 text-green-700" />
           <p className="font-semibold text-sm">My jobs</p>
-          <p className="text-xs text-gray-500">Requests & claims</p>
+          <p className="text-xs text-gray-500">Requests, claims & ratings</p>
         </Link>
         <Link
           href="/apply"
@@ -64,7 +64,7 @@ export default function HomePage() {
         >
           <UserPlus className="h-6 w-6 text-green-700" />
           <p className="font-semibold text-sm">Apply as worker</p>
-          <p className="text-xs text-gray-500">Get verified</p>
+          <p className="text-xs text-gray-500">Get verified & find work</p>
         </Link>
       </div>
 
@@ -72,10 +72,11 @@ export default function HomePage() {
         <ShieldCheck className="h-5 w-5 text-green-700 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="text-sm font-medium text-green-900">
-            Workers are reviewed before they appear
+            Reviewed before they appear
           </p>
           <p className="text-xs text-green-800/80">
-            Clear fees, ratings, and ID checks where required.
+            Clear fees in GMD, mutual ratings, and ID checks where required —
+            so you are not relying only on a WhatsApp forward.
           </p>
         </div>
       </div>
@@ -107,6 +108,7 @@ export default function HomePage() {
       </div>
 
       <p className="text-center text-xs text-gray-400">
+        Built in The Gambia{" · "}
         <Link href="/privacy" className="hover:text-green-700">
           Privacy Policy
         </Link>
