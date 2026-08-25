@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 export function ProofGallery({
   urls,
   emptyLabel = "No proof photos uploaded yet.",
+  onDelete,
+  deletingUrl,
 }: {
   urls: string[];
   emptyLabel?: string;
+  /** If provided, shows a delete control on each thumbnail (owner profile only). */
+  onDelete?: (url: string, index: number) => void;
+  /** URL currently being deleted — disables that control. */
+  deletingUrl?: string | null;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -59,23 +65,43 @@ export function ProofGallery({
     <>
       <div className="grid grid-cols-3 gap-2">
         {urls.map((url, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => setOpenIndex(i)}
-            className="relative aspect-square rounded-lg border overflow-hidden focus:outline-none focus:ring-2 focus:ring-green-600"
-            aria-label={`View proof photo ${i + 1}`}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={url}
-              alt={`Proof ${i + 1}`}
-              className="h-full w-full object-cover"
-            />
-          </button>
+          <div key={`${url}-${i}`} className="relative group">
+            <button
+              type="button"
+              onClick={() => setOpenIndex(i)}
+              className="relative aspect-square w-full rounded-lg border overflow-hidden focus:outline-none focus:ring-2 focus:ring-green-600"
+              aria-label={`View proof photo ${i + 1}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`Proof ${i + 1}`}
+                className="h-full w-full object-cover"
+              />
+            </button>
+            {onDelete && (
+              <button
+                type="button"
+                disabled={deletingUrl === url}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(url, i);
+                }}
+                className="absolute top-1 right-1 z-10 h-7 w-7 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-red-600 disabled:opacity-50"
+                aria-label={`Delete proof photo ${i + 1}`}
+                title="Remove photo"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         ))}
       </div>
-      <p className="text-[11px] text-gray-400 mt-2">Tap a photo to enlarge</p>
+      <p className="text-[11px] text-gray-400 mt-2">
+        {onDelete
+          ? "Tap a photo to enlarge · trash icon removes it"
+          : "Tap a photo to enlarge"}
+      </p>
 
       {openIndex !== null && (
         <div

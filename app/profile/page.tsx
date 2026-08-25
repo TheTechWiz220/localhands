@@ -20,11 +20,30 @@ import { SKILLS, AREAS } from "@/lib/skills";
 const MAX_FILES = 6;
 const MAX_SIZE_MB = 5;
 
+type ProofItem = {
+  id: string;
+  media_url: string;
+};
+
 function skillsEqual(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
   const sa = [...a].map((s) => s.trim()).sort();
   const sb = [...b].map((s) => s.trim()).sort();
   return sa.every((s, i) => s === sb[i]);
+}
+
+/** Extract storage object path from a public proof-media URL. */
+function storagePathFromPublicUrl(url: string): string | null {
+  const marker = "/proof-media/";
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  let path = url.slice(i + marker.length);
+  path = path.split("?")[0];
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }
 
 export default function ProfilePage() {
@@ -39,8 +58,9 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [proofUrls, setProofUrls] = useState<string[]>([]);
+  const [proofItems, setProofItems] = useState<ProofItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [avatarError, setAvatarError] = useState("");
@@ -60,15 +80,21 @@ export default function ProfilePage() {
   const supabase = createClient();
   const nameLocked = status === "verified";
   const isWorker = role === "worker" || role === "admin";
+  const proofUrls = proofItems.map((p) => p.media_url);
 
   async function loadProof(uid: string) {
     const { data } = await supabase
       .from("proof_media")
-      .select("media_url")
+      .select("id, media_url")
       .eq("worker_id", uid)
       .order("created_at", { ascending: false });
 
-    setProofUrls((data || []).map((r: any) => r.media_url));
+    setProofItems(
+      (data || []).map((r: any) => ({
+        id: r.id as string,
+        media_url: r.media_url as string,
+      }))
+    );
   }
 
   async function loadSkills(uid: string) {
@@ -187,11 +213,9 @@ export default function ProfilePage() {
     setSaveError("");
     setSaveMsg("");
 
-    const skillsChanged =
-      isWorker && !skillsEqual(skills, editSkills);
+    const skillsChanged = isWorker && !skillsEqual(skills, editSkills);
     // Verified workers who change skills go back to pending review
-    const needsReReview =
-      skillsChanged && status === "verified";
+    const needsReReview = skillsChanged && status === "verified";
 
     const updates: Record<string, unknown> = {
       location_area: editArea || null,
@@ -261,6 +285,45 @@ export default function ProfilePage() {
     window.location.href = "/";
   }
 
+  async function deleteProof(url: string) {
+    if (!userId) return;
+    const item = proofItems.find((p) => p.media_url === url);
+    if (!item) return;
+
+    const ok = window.confirm(
+      "Remove this proof photo? You can add a new one anytime. Your verified status will not change."
+    );
+    if (!ok) return;
+
+    setDeletingUrl(url);
+    setUploadError("");
+
+    const { error } = await supabase
+      .from("proof_media")
+      .delete()
+      .eq("id", item.id)
+      .eq("worker_id", userId);
+
+    if (error) {
+      setDeletingUrl(null);
+      setUploadError(
+        error.message.includes("policy") || error.message.includes("permission")
+          ? "Could not delete. Run the proof_media delete policy in Supabase (see chat)."
+          : error.message
+      );
+      return;
+    }
+
+    // Best-effort remove from storage (ignore failures — DB row is gone)
+    const path = storagePathFromPublicUrl(url);
+    if (path) {
+      await supabase.storage.from("proof-media").remove([path]);
+    }
+
+    setProofItems((prev) => prev.filter((p) => p.id !== item.id));
+    setDeletingUrl(null);
+  }
+
   async function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
     if (!userId) return;
     const file = e.target.files?.[0];
@@ -324,7 +387,7 @@ export default function ProfilePage() {
     setUploadError("");
 
     try {
-      let count = proofUrls.length;
+      let count = proofItems.length;
 
       for (const file of picked) {
         if (!file.type.startsWith("image/")) {
@@ -343,7 +406,7 @@ export default function ProfilePage() {
         const ext = file.name.split(".").pop() || "jpg";
         const path = `${userId}/${Date.now()}-${count}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadErr } = await supabase.storage
           .from("proof-media")
           .upload(path, file, {
             cacheControl: "3600",
@@ -351,7 +414,7 @@ export default function ProfilePage() {
             contentType: file.type,
           });
 
-        if (uploadError) throw new Error(uploadError.message);
+        if (uploadErr) throw new Error(uploadErr.message);
 
         const {
           data: { publicUrl },
@@ -616,7 +679,12 @@ export default function ProfilePage() {
                     }}
                     className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
                   />
-                  <Button type="button" variant="outline" size="sm" onClick={addCustomSkill}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCustomSkill}
+                  >
                     Add
                   </Button>
                 </div>
@@ -696,13 +764,16 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-sm">Proof of work</h3>
               <span className="text-xs text-gray-400">
-                {proofUrls.length}/{MAX_FILES}
+                {proofItems.length}/{MAX_FILES}
               </span>
             </div>
 
-            {proofUrls.length > 0 && (
-              <ProofGallery urls={proofUrls} emptyLabel="" />
-            )}
+            <ProofGallery
+              urls={proofUrls}
+              emptyLabel="No proof photos yet — add screenshots of your work."
+              onDelete={deleteProof}
+              deletingUrl={deletingUrl}
+            />
 
             <input
               ref={fileInputRef}
@@ -713,12 +784,12 @@ export default function ProfilePage() {
               onChange={onFilesSelected}
             />
 
-            {proofUrls.length < MAX_FILES && (
+            {proofItems.length < MAX_FILES && (
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
-                disabled={uploading}
+                disabled={uploading || !!deletingUrl}
                 onClick={() => fileInputRef.current?.click()}
               >
                 {uploading ? (
