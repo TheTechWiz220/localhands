@@ -144,7 +144,7 @@ export default function ApplyPage() {
     }));
 
     const { error: insertError } = await supabase
-      .from("worker_media")
+      .from("proof_media")
       .insert(rows);
 
     if (insertError) throw new Error(insertError.message);
