@@ -1,29 +1,31 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { User, LogOut, Loader2, ImagePlus, Camera, Pencil, Check } from "lucide-react";
+import {
+  User,
+  LogOut,
+  Loader2,
+  ImagePlus,
+  Camera,
+  Pencil,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { ProofGallery } from "@/components/image-lightbox";
+import { SKILLS, AREAS } from "@/lib/skills";
 
 const MAX_FILES = 6;
 const MAX_SIZE_MB = 5;
 
-const AREAS = [
-  "Kololi",
-  "Brusubi",
-  "Bijilo",
-  "Senegambia",
-  "Bakau",
-  "Fajara",
-  "Serrekunda",
-  "Kanifing",
-  "Brikama",
-  "Banjul",
-  "Basse",
-  "Other",
-];
+function skillsEqual(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  const sa = [...a].map((s) => s.trim()).sort();
+  const sb = [...b].map((s) => s.trim()).sort();
+  return sa.every((s, i) => s === sb[i]);
+}
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,8 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState<string | null>(null);
   const [locationArea, setLocationArea] = useState<string>("");
   const [whatsappPhone, setWhatsappPhone] = useState<string>("");
+  const [bio, setBio] = useState<string>("");
+  const [skills, setSkills] = useState<string[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -44,6 +48,9 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState("");
   const [editArea, setEditArea] = useState("");
   const [editWhatsapp, setEditWhatsapp] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editSkills, setEditSkills] = useState<string[]>([]);
+  const [customSkill, setCustomSkill] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -51,6 +58,8 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
+  const nameLocked = status === "verified";
+  const isWorker = role === "worker" || role === "admin";
 
   async function loadProof(uid: string) {
     const { data } = await supabase
@@ -60,6 +69,14 @@ export default function ProfilePage() {
       .order("created_at", { ascending: false });
 
     setProofUrls((data || []).map((r: any) => r.media_url));
+  }
+
+  async function loadSkills(uid: string) {
+    const { data } = await supabase
+      .from("worker_skills")
+      .select("skill")
+      .eq("worker_id", uid);
+    setSkills((data || []).map((r: any) => r.skill as string));
   }
 
   useEffect(() => {
@@ -79,7 +96,7 @@ export default function ProfilePage() {
       const { data: profile } = await supabase
         .from("profiles")
         .select(
-          "full_name, role, verification_status, avatar_url, location_area, whatsapp_phone"
+          "full_name, role, verification_status, avatar_url, location_area, whatsapp_phone, bio"
         )
         .eq("id", user.id)
         .single();
@@ -91,13 +108,18 @@ export default function ProfilePage() {
         setAvatarUrl(profile.avatar_url || null);
         setLocationArea(profile.location_area || "");
         setWhatsappPhone(profile.whatsapp_phone || "");
+        setBio(profile.bio || "");
         setEditName(profile.full_name || "");
         setEditArea(profile.location_area || "");
         setEditWhatsapp(profile.whatsapp_phone || "");
+        setEditBio(profile.bio || "");
       }
 
       const pendingName = localStorage.getItem("lh_full_name");
-      if (pendingName && (!profile?.full_name || profile.full_name.trim() === "")) {
+      if (
+        pendingName &&
+        (!profile?.full_name || profile.full_name.trim() === "")
+      ) {
         await supabase
           .from("profiles")
           .update({
@@ -110,22 +132,54 @@ export default function ProfilePage() {
         localStorage.removeItem("lh_full_name");
       }
 
+      await loadSkills(user.id);
       await loadProof(user.id);
       setLoading(false);
     }
 
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    window.location.href = "/";
+  function openEditor() {
+    setEditName(fullName || "");
+    setEditArea(locationArea || "");
+    setEditWhatsapp(whatsappPhone || "");
+    setEditBio(bio || "");
+    setEditSkills([...skills]);
+    setCustomSkill("");
+    setEditing(true);
+    setSaveMsg("");
+    setSaveError("");
+  }
+
+  function toggleSkill(skill: string) {
+    setEditSkills((prev) =>
+      prev.includes(skill)
+        ? prev.filter((s) => s !== skill)
+        : [...prev, skill]
+    );
+  }
+
+  function addCustomSkill() {
+    const s = customSkill.trim();
+    if (!s) return;
+    if (!editSkills.includes(s)) {
+      setEditSkills((prev) => [...prev, s]);
+    }
+    setCustomSkill("");
   }
 
   async function saveProfile() {
     if (!userId) return;
-    if (!editName.trim()) {
+
+    if (!nameLocked && !editName.trim()) {
       setSaveError("Please enter your name.");
+      return;
+    }
+
+    if (isWorker && editSkills.length === 0) {
+      setSaveError("Select at least one skill.");
       return;
     }
 
@@ -133,19 +187,35 @@ export default function ProfilePage() {
     setSaveError("");
     setSaveMsg("");
 
+    const skillsChanged =
+      isWorker && !skillsEqual(skills, editSkills);
+    // Verified workers who change skills go back to pending review
+    const needsReReview =
+      skillsChanged && status === "verified";
+
+    const updates: Record<string, unknown> = {
+      location_area: editArea || null,
+      whatsapp_phone: editWhatsapp.trim() || null,
+      bio: editBio.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!nameLocked) {
+      updates.full_name = editName.trim();
+    }
+
+    if (needsReReview) {
+      updates.verification_status = "pending";
+      updates.is_verified = false;
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({
-        full_name: editName.trim(),
-        location_area: editArea || null,
-        whatsapp_phone: editWhatsapp.trim() || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq("id", userId);
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       setSaveError(
         error.message.includes("whatsapp")
           ? "Add whatsapp_phone column — run the SQL in Supabase."
@@ -154,11 +224,41 @@ export default function ProfilePage() {
       return;
     }
 
-    setFullName(editName.trim());
+    if (skillsChanged) {
+      await supabase.from("worker_skills").delete().eq("worker_id", userId);
+      const skillRows = editSkills.map((skill) => ({
+        worker_id: userId,
+        skill,
+      }));
+      const { error: skillsError } = await supabase
+        .from("worker_skills")
+        .insert(skillRows);
+      if (skillsError) {
+        setSaving(false);
+        setSaveError(skillsError.message);
+        return;
+      }
+      setSkills([...editSkills]);
+    }
+
+    if (!nameLocked) setFullName(editName.trim());
     setLocationArea(editArea);
     setWhatsappPhone(editWhatsapp.trim());
+    setBio(editBio.trim());
+    if (needsReReview) setStatus("pending");
+
+    setSaving(false);
     setEditing(false);
-    setSaveMsg("Profile updated.");
+    setSaveMsg(
+      needsReReview
+        ? "Profile saved. Skills changed — your profile is back under review and will not appear in Find until approved again."
+        : "Profile updated."
+    );
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
   }
 
   async function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -351,7 +451,7 @@ export default function ProfilePage() {
               onChange={onAvatarSelected}
             />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="font-semibold">{fullName || "No name set"}</p>
             <p className="text-sm text-gray-500">{email}</p>
             {locationArea && (
@@ -364,17 +464,12 @@ export default function ProfilePage() {
               <button
                 type="button"
                 className="text-xs text-green-700 mt-1 hover:underline inline-flex items-center gap-1"
-                onClick={() => {
-                  setEditName(fullName || "");
-                  setEditArea(locationArea || "");
-                  setEditWhatsapp(whatsappPhone || "");
-                  setEditing(true);
-                  setSaveMsg("");
-                  setSaveError("");
-                }}
+                onClick={openEditor}
               >
                 <Pencil className="h-3 w-3" />
-                Edit name, area & WhatsApp
+                {isWorker
+                  ? "Edit profile, bio & skills"
+                  : "Edit name, area & WhatsApp"}
               </button>
             )}
           </div>
@@ -382,18 +477,54 @@ export default function ProfilePage() {
 
         {avatarError && <p className="text-sm text-red-600">{avatarError}</p>}
 
+        {!editing && bio && (
+          <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500 mb-1">About</p>
+            <p className="leading-relaxed whitespace-pre-wrap">{bio}</p>
+          </div>
+        )}
+
+        {!editing && isWorker && skills.length > 0 && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1.5">Skills</p>
+            <div className="flex flex-wrap gap-1.5">
+              {skills.map((s) => (
+                <Badge key={s} variant="secondary">
+                  {s}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {editing && (
           <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
             <div>
               <label className="text-xs font-medium mb-1 block">Full name *</label>
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Your name"
-                className="w-full px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
-              />
+              {nameLocked ? (
+                <>
+                  <input
+                    type="text"
+                    value={fullName || ""}
+                    disabled
+                    className="w-full px-3 py-2 rounded-lg border bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Name is locked after verification. Contact admin to change
+                    it.
+                  </p>
+                </>
+              ) : (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+                />
+              )}
             </div>
+
             <div>
               <label className="text-xs font-medium mb-1 block">Area</label>
               <select
@@ -409,6 +540,7 @@ export default function ProfilePage() {
                 ))}
               </select>
             </div>
+
             <div>
               <label className="text-xs font-medium mb-1 block">
                 WhatsApp number
@@ -424,9 +556,90 @@ export default function ProfilePage() {
                 Shared only after a job is accepted — not on public profiles.
               </p>
             </div>
+
+            <div>
+              <label className="text-xs font-medium mb-1 block">About you</label>
+              <textarea
+                rows={3}
+                value={editBio}
+                onChange={(e) => setEditBio(e.target.value)}
+                placeholder={
+                  isWorker
+                    ? "e.g. Founder of LocalHands. Web, design, digital setup for small businesses..."
+                    : "Optional short intro"
+                }
+                className="w-full px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-green-600 resize-none"
+              />
+            </div>
+
+            {isWorker && (
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">
+                  Skills * (select one or more)
+                </label>
+                {status === "verified" && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1.5 mb-2">
+                    Changing skills will remove you from Find until admin
+                    approves again.
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {SKILLS.map((skill) => {
+                    const active = editSkills.includes(skill);
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => toggleSkill(skill)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          active
+                            ? "bg-green-600 text-white border-green-600"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-green-400"
+                        }`}
+                      >
+                        {skill}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    placeholder="Add another skill..."
+                    value={customSkill}
+                    onChange={(e) => setCustomSkill(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addCustomSkill();
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-600"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={addCustomSkill}>
+                    Add
+                  </Button>
+                </div>
+                {editSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {editSkills.map((s) => (
+                      <Badge key={s} variant="secondary">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
             <div className="flex gap-2">
-              <Button size="sm" className="flex-1" onClick={saveProfile} disabled={saving}>
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={saveProfile}
+                disabled={saving}
+              >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -449,7 +662,9 @@ export default function ProfilePage() {
         )}
 
         {saveMsg && (
-          <p className="text-sm text-green-700 bg-green-50 rounded-lg p-2">{saveMsg}</p>
+          <p className="text-sm text-green-700 bg-green-50 rounded-lg p-2">
+            {saveMsg}
+          </p>
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -471,7 +686,8 @@ export default function ProfilePage() {
 
         {role === "worker" && status === "pending" && (
           <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-3">
-            Your worker application is pending review.
+            Your worker application is pending review. You will not appear in
+            Find until approved.
           </p>
         )}
 
