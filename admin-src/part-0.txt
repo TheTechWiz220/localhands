@@ -1,0 +1,57 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  ShieldCheck,
+  Check,
+  X,
+  Lock,
+  Loader2,
+  Briefcase,
+  Wallet,
+  Users,
+  Search,
+  ExternalLink,
+  Star,
+  Ban,
+  RotateCcw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { calcFees, formatGmd, PLATFORM_FEE_PERCENT } from "@/lib/pricing";
+
+type AccessState = "loading" | "denied" | "allowed";
+
+type PendingWorker = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  bio: string | null;
+  verification_status: string;
+  skills: string[];
+  proof_urls: string[];
+};
+
+type ListedWorker = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  bio: string | null;
+  verification_status: string;
+  avatar_url: string | null;
+  skills: string[];
+  created_at: string | null;
+  id_verified?: boolean;
+};
+
+type ListedClient = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  avatar_url: string | null;
+  created_at: string | null;
+};
+
+// PLACEHOLDER_PART0_CONTINUES
