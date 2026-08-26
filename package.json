@@ -1,9 +1,10 @@
 {
   "name": "localhands",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "prebuild": "node scripts/assemble-admin.js",
+    "dev": "node scripts/assemble-admin.js && next dev",
     "build": "next build",
     "start": "next start"
   },

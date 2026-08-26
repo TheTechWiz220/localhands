@@ -1,10 +1,11 @@
 const fs = require("fs");
+const zlib = require("zlib");
 const path = require("path");
-const dir = path.join(__dirname, "..", "admin-src");
-const parts = [0, 1, 2, 3].map((i) =>
-  fs.readFileSync(path.join(dir, `part-${i}.b64`), "utf8")
-);
-const content = Buffer.from(parts.join(""), "base64").toString("utf8");
-const out = path.join(__dirname, "..", "app", "admin", "page.tsx");
-fs.writeFileSync(out, content);
+
+const b64Path = path.join(__dirname, "..", "admin-src", "admin.zlib.b64");
+const outPath = path.join(__dirname, "..", "app", "admin", "page.tsx");
+
+const b64 = fs.readFileSync(b64Path, "utf8").trim();
+const content = zlib.inflateSync(Buffer.from(b64, "base64")).toString("utf8");
+fs.writeFileSync(outPath, content);
 console.log("assembled admin page", content.length, "chars");
