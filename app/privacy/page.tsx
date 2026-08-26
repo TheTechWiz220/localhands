@@ -160,7 +160,10 @@ export default function PrivacyPage() {
         </p>
       </section>
 
-      <p className="pt-4 border-t text-xs text-gray-500">
+      <p className="pt-4 border-t text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
+        <Link href="/terms" className="text-green-700 hover:underline">
+          Terms of Service
+        </Link>
         <Link href="/" className="text-green-700 hover:underline">
           ← Back to LocalHands
         </Link>
