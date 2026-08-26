@@ -142,7 +142,6 @@ function AuthForm() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
-        {/* Mode switch — subtle, not two big buttons */}
         <div className="flex rounded-lg bg-gray-100 p-1">
           <button
             type="button"
@@ -259,6 +258,17 @@ function AuthForm() {
 
         <p className="text-xs text-center text-gray-400">
           No password — we email a one-time link
+        </p>
+        <p className="text-[11px] text-center text-gray-400 leading-relaxed">
+          By continuing you agree to our{" "}
+          <a href="/terms" className="text-green-700 underline">
+            Terms
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" className="text-green-700 underline">
+            Privacy Policy
+          </a>
+          .
         </p>
       </div>
 
