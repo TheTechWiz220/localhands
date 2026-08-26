@@ -19,6 +19,7 @@ export default function RequestWorkerPage() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [needAuth, setNeedAuth] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
   const [workerName, setWorkerName] = useState("Worker");
   const [clientId, setClientId] = useState<string | null>(null);
 
@@ -71,11 +72,16 @@ export default function RequestWorkerPage() {
 
       const { data: worker } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, verification_status")
         .eq("id", workerId)
         .maybeSingle();
 
       if (worker?.full_name) setWorkerName(worker.full_name);
+      if (worker?.verification_status === "suspended") {
+        setIsSuspended(true);
+        setLoading(false);
+        return;
+      }
 
       const { data: skills } = await supabase
         .from("worker_skills")
@@ -131,6 +137,20 @@ export default function RequestWorkerPage() {
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
         <Loader2 className="h-8 w-8 animate-spin mx-auto text-green-600 mb-4" />
         <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (isSuspended) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4">
+        <h1 className="text-xl font-bold">Worker suspended</h1>
+        <p className="text-gray-500 text-sm">
+          {workerName} is not available for new jobs until LocalHands re-approves their account.
+        </p>
+        <Link href="/directory">
+          <Button variant="outline">Back to Find</Button>
+        </Link>
       </div>
     );
   }
