@@ -109,6 +109,10 @@ export default function HomePage() {
 
       <p className="text-center text-xs text-gray-400">
         Built in The Gambia{" · "}
+        <Link href="/terms" className="hover:text-green-700">
+          Terms
+        </Link>
+        {" · "}
         <Link href="/privacy" className="hover:text-green-700">
           Privacy Policy
         </Link>
