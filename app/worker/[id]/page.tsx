@@ -1,4 +1,4 @@
-import { MapPin, Star, ShieldCheck, MessageCircle, Briefcase } from "lucide-react";
+import { MapPin, Star, ShieldCheck, MessageCircle, Briefcase, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -99,19 +99,43 @@ export default async function WorkerPage({
   }
 
   const isVerified = worker.verification_status === "verified";
+  const isSuspended = worker.verification_status === "suspended";
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      {isSuspended && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex gap-3">
+          <Ban className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-amber-900 text-sm">
+              Account suspended
+            </p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              This worker is not available for new jobs until LocalHands
+              re-approves their verification.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4 items-center">
         {worker.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={worker.avatar_url}
             alt={worker.full_name}
-            className="h-20 w-20 rounded-full object-cover border shrink-0"
+            className={`h-20 w-20 rounded-full object-cover border shrink-0 ${
+              isSuspended ? "opacity-70 grayscale" : ""
+            }`}
           />
         ) : (
-          <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl shrink-0">
+          <div
+            className={`h-20 w-20 rounded-full flex items-center justify-center font-bold text-2xl shrink-0 ${
+              isSuspended
+                ? "bg-amber-100 text-amber-800"
+                : "bg-green-100 text-green-700"
+            }`}
+          >
             {worker.full_name[0]}
           </div>
         )}
@@ -128,6 +152,12 @@ export default async function WorkerPage({
                   <Badge variant="secondary">ID checked</Badge>
                 )}
               </>
+            )}
+            {isSuspended && (
+              <Badge variant="warning">
+                <Ban className="h-3.5 w-3.5 mr-1 inline" />
+                Suspended
+              </Badge>
             )}
           </div>
           <div className="flex items-center gap-1 text-gray-500 mt-1">
@@ -168,9 +198,15 @@ export default async function WorkerPage({
       </div>
 
       <div className="flex gap-3">
-        <Link href={`/request/${worker.id}`} className="flex-1">
-          <Button className="w-full">Request this person</Button>
-        </Link>
+        {isSuspended ? (
+          <Button className="flex-1" disabled title="Worker is suspended">
+            Not available
+          </Button>
+        ) : (
+          <Link href={`/request/${worker.id}`} className="flex-1">
+            <Button className="w-full">Request this person</Button>
+          </Link>
+        )}
         <Button
           variant="outline"
           size="icon"

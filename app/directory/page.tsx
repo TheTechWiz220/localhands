@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, MapPin, Star, ShieldCheck, Loader2 } from "lucide-react";
+import { Search, MapPin, Star, ShieldCheck, Loader2, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -19,6 +19,7 @@ type Worker = {
   jobs_done: number;
   joined_at: string | null;
   id_verified?: boolean;
+  verification_status: string;
 };
 
 export default function DirectoryPage() {
@@ -33,13 +34,14 @@ export default function DirectoryPage() {
     async function load() {
       setLoading(true);
 
+      // Show verified + suspended so the public can see suspension status
       const { data } = await supabase
         .from("profiles")
         .select(
           "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at, id_verified"
         )
         .eq("role", "worker")
-        .eq("verification_status", "verified")
+        .in("verification_status", ["verified", "suspended"])
         .order("created_at", { ascending: false });
 
       if (!data || data.length === 0) {
@@ -91,9 +93,17 @@ export default function DirectoryPage() {
             rating_count: ratingRows?.length || 0,
             jobs_done: count || 0,
             joined_at: p.created_at || null,
+            verification_status: p.verification_status || "verified",
           } as Worker;
         })
       );
+
+      // Verified first, suspended at the bottom
+      withSkills.sort((a, b) => {
+        if (a.verification_status === b.verification_status) return 0;
+        if (a.verification_status === "verified") return -1;
+        return 1;
+      });
 
       setWorkers(withSkills);
       setLoading(false);
@@ -171,78 +181,127 @@ export default function DirectoryPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((w) => (
-            <Link key={w.id} href={`/worker/${w.id}`}>
-              <div className="rounded-xl border bg-white p-4 hover:border-green-300 transition-colors">
-                <div className="flex gap-3 items-center">
-                  {w.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={w.avatar_url}
-                      alt={w.full_name}
-                      className="h-14 w-14 rounded-full object-cover border shrink-0"
-                    />
-                  ) : (
-                    <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg shrink-0">
-                      {w.full_name[0]}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="font-semibold">{w.full_name}</h3>
-                      <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
-                      {w.id_verified && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          ID checked
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      {w.location_area}
-                    </div>
-                    {w.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {w.skills.slice(0, 3).map((s) => (
-                          <Badge key={s} variant="secondary">
-                            {s}
-                          </Badge>
-                        ))}
+          {filtered.map((w) => {
+            const isSuspended = w.verification_status === "suspended";
+            return (
+              <Link key={w.id} href={`/worker/${w.id}`}>
+                <div
+                  className={`rounded-xl border p-4 transition-colors ${
+                    isSuspended
+                      ? "bg-amber-50/50 border-amber-200 hover:border-amber-300"
+                      : "bg-white hover:border-green-300"
+                  }`}
+                >
+                  <div className="flex gap-3 items-center">
+                    {w.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={w.avatar_url}
+                        alt={w.full_name}
+                        className={`h-14 w-14 rounded-full object-cover border shrink-0 ${
+                          isSuspended ? "opacity-70 grayscale" : ""
+                        }`}
+                      />
+                    ) : (
+                      <div
+                        className={`h-14 w-14 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
+                          isSuspended
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {w.full_name[0]}
                       </div>
                     )}
-                    <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
-                      {w.rating > 0 ? (
-                        <span className="flex items-center gap-0.5 text-amber-600">
-                          <Star className="h-3.5 w-3.5 fill-current" />
-                          {w.rating}
-                          {w.rating_count > 0 && (
-                            <span className="text-gray-400">
-                              ({w.rating_count})
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3
+                          className={`font-semibold ${
+                            isSuspended ? "text-gray-700" : ""
+                          }`}
+                        >
+                          {w.full_name}
+                        </h3>
+                        {isSuspended ? (
+                          <Badge
+                            variant="warning"
+                            className="text-[10px] px-1.5 py-0 gap-0.5"
+                          >
+                            <Ban className="h-3 w-3" />
+                            Suspended
+                          </Badge>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
+                            {w.id_verified && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                ID checked
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        {w.location_area}
+                      </div>
+                      {isSuspended && (
+                        <p className="text-xs text-amber-700 mt-1">
+                          Not available for new jobs until re-approved
+                        </p>
+                      )}
+                      {!isSuspended && w.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {w.skills.slice(0, 3).map((s) => (
+                            <Badge key={s} variant="secondary">
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {!isSuspended && (
+                        <div className="flex items-center gap-2 mt-1 text-sm flex-wrap">
+                          {w.rating > 0 ? (
+                            <span className="flex items-center gap-0.5 text-amber-600">
+                              <Star className="h-3.5 w-3.5 fill-current" />
+                              {w.rating}
+                              {w.rating_count > 0 && (
+                                <span className="text-gray-400">
+                                  ({w.rating_count})
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">
+                              No ratings yet
                             </span>
                           )}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No ratings yet</span>
-                      )}
-                      <span className="text-gray-500">· {w.jobs_done} jobs</span>
-                      {w.joined_at && (
-                        <span className="text-gray-400">
-                          · Joined{" "}
-                          {new Date(w.joined_at).toLocaleDateString("en-GB", {
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </span>
+                          <span className="text-gray-500">
+                            · {w.jobs_done} jobs
+                          </span>
+                          {w.joined_at && (
+                            <span className="text-gray-400">
+                              · Joined{" "}
+                              {new Date(w.joined_at).toLocaleDateString(
+                                "en-GB",
+                                {
+                                  month: "short",
+                                  year: "numeric",
+                                }
+                              )}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
