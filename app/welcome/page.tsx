@@ -51,7 +51,6 @@ function StoreButton({
 export default function WelcomePage() {
   return (
     <div className="flex flex-col pb-10">
-      {/* Hero */}
       <section className="bg-gradient-to-b from-green-600 to-green-700 text-white px-4 py-12">
         <div className="max-w-lg mx-auto text-center space-y-5">
           <p className="text-green-100 text-sm font-medium tracking-wide">
@@ -67,7 +66,6 @@ export default function WelcomePage() {
             pricing, ratings, and a structured way to get work done.
           </p>
 
-          {/* Store buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <button
               type="button"
@@ -132,7 +130,6 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* Trust strip */}
       <section className="px-4 py-8 max-w-lg mx-auto w-full">
         <div className="grid grid-cols-2 gap-3">
           {[
@@ -171,7 +168,6 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* How it works */}
       <section className="px-4 py-6 max-w-lg mx-auto w-full space-y-4">
         <h2 className="text-xl font-bold text-center">How it works</h2>
         <div className="space-y-3">
@@ -208,7 +204,6 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* Who it's for */}
       <section className="px-4 py-8 max-w-lg mx-auto w-full space-y-3">
         <h2 className="text-xl font-bold text-center mb-2">Who it's for</h2>
         <div className="rounded-xl border bg-white p-4 space-y-2">
@@ -278,6 +273,10 @@ export default function WelcomePage() {
           >
             thetechwiz220@gmail.com
           </a>
+          <span>·</span>
+          <Link href="/terms" className="hover:text-green-700">
+            Terms
+          </Link>
           <span>·</span>
           <Link href="/privacy" className="hover:text-green-700">
             Privacy Policy
