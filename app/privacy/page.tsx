@@ -11,8 +11,8 @@ export default function PrivacyPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Privacy Policy</h1>
         <p className="text-xs text-gray-500 mt-1">
-          Last updated: 21 August 2026 · LocalHands is a product of The Techwiz
-          Brand
+          Last updated: 31 August 2026 · LocalHands is a product of The Techwiz.
+          Operated by The Techwiz Lab.
         </p>
       </div>
 
@@ -20,7 +20,8 @@ export default function PrivacyPage() {
         <h2 className="font-semibold text-gray-900">1. Who we are</h2>
         <p>
           LocalHands ("we", "us") is a platform that connects clients with
-          verified skilled workers in The Gambia. Contact:{" "}
+          verified skilled workers in The Gambia. It is a product of The Techwiz
+          and is operated by The Techwiz Lab. Contact:{" "}
           <a
             href="mailto:thetechwiz220@gmail.com"
             className="text-green-700 underline"

@@ -107,16 +107,24 @@ export default function HomePage() {
         )}
       </div>
 
-      <p className="text-center text-xs text-gray-400">
-        Built in The Gambia{" · "}
-        <Link href="/terms" className="hover:text-green-700">
-          Terms
-        </Link>
-        {" · "}
-        <Link href="/privacy" className="hover:text-green-700">
-          Privacy Policy
-        </Link>
-      </p>
+      <div className="text-center text-xs text-gray-400 space-y-1 pt-2">
+        <p>
+          LocalHands is a product of The Techwiz
+        </p>
+        <p>
+          © 2026 The Techwiz Lab. All rights reserved.
+        </p>
+        <p>
+          Built in The Gambia{" · "}
+          <Link href="/terms" className="hover:text-green-700">
+            Terms
+          </Link>
+          {" · "}
+          <Link href="/privacy" className="hover:text-green-700">
+            Privacy Policy
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

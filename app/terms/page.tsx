@@ -12,8 +12,8 @@ export default function TermsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Terms of Service</h1>
         <p className="text-xs text-gray-500 mt-1">
-          Last updated: 26 August 2026 · LocalHands is a product of The Techwiz
-          Brand
+          Last updated: 31 August 2026 · LocalHands is a product of The Techwiz.
+          Operated by The Techwiz Lab.
         </p>
       </div>
 
@@ -29,7 +29,8 @@ export default function TermsPage() {
           . If you do not agree, do not use the Platform.
         </p>
         <p>
-          LocalHands is operated by The Techwiz Brand. Contact:{" "}
+          LocalHands is a product of The Techwiz and is operated by The Techwiz
+          Lab. Contact:{" "}
           <a
             href="mailto:thetechwiz220@gmail.com"
             className="text-green-700 underline"
