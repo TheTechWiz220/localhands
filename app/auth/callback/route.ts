@@ -5,7 +5,8 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/directory";
+  // Default to Profile so new clients see their account status first
+  const next = searchParams.get("next") ?? "/profile";
 
   // Build redirect response first so we can attach cookies to IT
   let response = NextResponse.redirect(`${origin}${next}`);
