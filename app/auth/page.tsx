@@ -36,7 +36,8 @@ function AuthForm() {
 
       if (user) {
         const savedRole = localStorage.getItem("lh_role") || "client";
-        window.location.href = savedRole === "worker" ? "/apply" : "/directory";
+        // Clients land on Profile so they see their status; workers go to Apply
+        window.location.href = savedRole === "worker" ? "/apply" : "/profile";
         return;
       }
       setCheckingSession(false);
