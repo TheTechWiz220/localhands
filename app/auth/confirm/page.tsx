@@ -22,7 +22,8 @@ export default function AuthConfirmPage() {
 
       if (user) {
         const role = localStorage.getItem("lh_role") || "client";
-        window.location.href = role === "worker" ? "/apply" : "/directory";
+        // Clients land on Profile so they see their status; workers go to Apply
+        window.location.href = role === "worker" ? "/apply" : "/profile";
         return;
       }
 
@@ -40,7 +41,7 @@ export default function AuthConfirmPage() {
 
           if (!error) {
             const role = localStorage.getItem("lh_role") || "client";
-            window.location.href = role === "worker" ? "/apply" : "/directory";
+            window.location.href = role === "worker" ? "/apply" : "/profile";
             return;
           }
           setMessage(error.message);
