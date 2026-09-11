@@ -52,7 +52,7 @@ export default function SubmitFindingPage() {
       campaign_id: id, tester_id: user.id, task_id: taskId || null,
       title: title.trim(), finding_type: findingType, severity,
       reproduction_steps: reproductionSteps.trim(), expected_behavior: expected.trim(), actual_behavior: actual.trim(),
-      device: device.trim() || null, os: os.trim() || null, browser: browser.trim() || null,
+      device: device.trim() || null, operating_system: os.trim() || null, browser: browser.trim() || null,
       evidence_url: evidenceUrl.trim() || null,
     });
     setSubmitting(false);
