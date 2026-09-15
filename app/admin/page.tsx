@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShieldCheck, Lock, Loader2 } from "lucide-react";
+import { ShieldCheck, Lock, Loader2, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -58,13 +58,35 @@ export default function AdminPage() {
         <ShieldCheck className="h-6 w-6 text-green-700" />
         Admin
       </h1>
-      <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-3">
-        Admin panel upgrade in progress (proof empty state + remove
-        verification). Full panel returns in the next push. For urgent approvals,
-        use Supabase → profiles → set verification_status = verified.
+
+      <Link
+        href="/admin/testing"
+        className="flex items-center gap-3 rounded-xl border bg-white p-4 shadow-sm hover:border-green-300"
+      >
+        <FlaskConical className="h-6 w-6 text-green-700 shrink-0" />
+        <div>
+          <p className="font-semibold">Testing</p>
+          <p className="text-xs text-gray-500">
+            Campaigns, claims, reports, accept / pay
+          </p>
+        </div>
+      </Link>
+
+      <p className="text-sm text-gray-600 bg-gray-50 border rounded-lg p-3">
+        Worker verification and other admin tools: use the panels you already
+        had in production, or Supabase → profiles for urgent verification
+        status changes.
       </p>
+
+      <Link href="/testing">
+        <Button variant="outline" className="w-full">
+          Open tester view
+        </Button>
+      </Link>
       <Link href="/">
-        <Button variant="outline">Back to app</Button>
+        <Button variant="outline" className="w-full">
+          Back to app
+        </Button>
       </Link>
     </div>
   );

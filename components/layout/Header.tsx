@@ -48,7 +48,6 @@ export function Header() {
         return;
       }
       setEmail(session.user.email ?? null);
-      // Refresh role on auth change
       supabase
         .from("profiles")
         .select("role")
@@ -76,6 +75,14 @@ export function Header() {
           <span className="text-lg">LocalHands</span>
         </Link>
         <div className="flex items-center gap-3">
+          {email && (
+            <Link
+              href="/testing"
+              className="text-xs text-gray-500 hover:text-green-700"
+            >
+              Testing
+            </Link>
+          )}
           {isAdmin && (
             <Link
               href="/admin"
