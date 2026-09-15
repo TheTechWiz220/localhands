@@ -36,10 +36,18 @@ type Report = {
 };
 
 const severityOptions = [
-  { value: "blocker", label: "Blocker — can't complete flow" },
-  { value: "annoying", label: "Annoying — works but friction" },
-  { value: "typo", label: "Typo / polish" },
+  { value: "blocker", label: "Something blocked me" },
+  { value: "annoying", label: "It worked but was annoying" },
+  { value: "typo", label: "Small issue / typo / polish" },
 ] as const;
+
+/** Split campaign checklist text into tickable steps */
+function parseChecklistSteps(checklist: string): string[] {
+  return checklist
+    .split(/\n+/)
+    .map((line) => line.replace(/^\s*\d+[.)]\s*/, "").trim())
+    .filter((line) => line.length > 0);
+}
 
 export default function TestingPage() {
   const supabase = createClient();
@@ -51,9 +59,8 @@ export default function TestingPage() {
   const [slotCounts, setSlotCounts] = useState<Record<string, number>>({});
   const [activeClaim, setActiveClaim] = useState<string | null>(null);
   const [reportFor, setReportFor] = useState<Assignment | null>(null);
-  const [whatTried, setWhatTried] = useState("");
-  const [expected, setExpected] = useState("");
-  const [actual, setActual] = useState("");
+  const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
+  const [problemNote, setProblemNote] = useState("");
   const [severity, setSeverity] = useState<"blocker" | "annoying" | "typo">(
     "annoying"
   );
@@ -146,6 +153,15 @@ export default function TestingPage() {
     load();
   }, [load]);
 
+  function openReportForm(a: Assignment) {
+    setReportFor(a);
+    setCheckedSteps({});
+    setProblemNote("");
+    setSeverity("annoying");
+    setDevice("");
+    setMessage(null);
+  }
+
   async function createAndOpen() {
     if (!title.trim() || !brief.trim()) {
       setMessage("Add a title and brief for testers.");
@@ -208,23 +224,42 @@ export default function TestingPage() {
       );
       return;
     }
-    setMessage("Claimed — complete the checklist and submit a report.");
+    setMessage("Claimed — tick the steps you finished and submit a report.");
     await load();
   }
 
   async function submitReport() {
-    if (!reportFor || !whatTried.trim()) {
-      setMessage("Describe what you tried.");
+    if (!reportFor) return;
+
+    const camp = campaigns.find((c) => c.id === reportFor.campaign_id);
+    const steps = parseChecklistSteps(camp?.checklist || "");
+    const done = steps.filter((_, i) => checkedSteps[i]);
+    const skipped = steps.filter((_, i) => !checkedSteps[i]);
+
+    if (steps.length > 0 && done.length === 0) {
+      setMessage("Tick at least one step you completed.");
       return;
     }
+
+    const whatTried =
+      steps.length > 0
+        ? [
+            "Steps completed:",
+            ...done.map((s, i) => `✓ ${s}`),
+            ...(skipped.length
+              ? ["", "Not done / skipped:", ...skipped.map((s) => `○ ${s}`)]
+              : []),
+          ].join("\n")
+        : problemNote.trim() || "Tested the app";
+
     setSubmitting(true);
     setMessage(null);
 
     const { error: repErr } = await supabase.from("test_reports").insert({
       assignment_id: reportFor.id,
-      what_tried: whatTried.trim(),
-      expected: expected.trim() || null,
-      actual: actual.trim() || null,
+      what_tried: whatTried,
+      expected: null,
+      actual: problemNote.trim() || null,
       severity,
       device: device.trim() || null,
     });
@@ -242,9 +277,8 @@ export default function TestingPage() {
 
     setSubmitting(false);
     setReportFor(null);
-    setWhatTried("");
-    setExpected("");
-    setActual("");
+    setCheckedSteps({});
+    setProblemNote("");
     setDevice("");
     setSeverity("annoying");
     setMessage("Report submitted — thank you.");
@@ -327,6 +361,11 @@ export default function TestingPage() {
     ? campaigns.filter((c) => c.status !== "open")
     : [];
 
+  const reportCampaign = reportFor
+    ? campaigns.find((c) => c.id === reportFor.campaign_id)
+    : null;
+  const reportSteps = parseChecklistSteps(reportCampaign?.checklist || "");
+
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       <div>
@@ -335,8 +374,8 @@ export default function TestingPage() {
           Testing
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Claim a campaign, follow the checklist, submit a clear bug or feedback
-          report.
+          Claim a campaign, tick the steps you finished, tell us if anything
+          went wrong.
         </p>
       </div>
 
@@ -418,33 +457,48 @@ export default function TestingPage() {
       {reportFor && (
         <div className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
           <h2 className="font-semibold">Submit report</h2>
+          <p className="text-xs text-gray-500">
+            Tick every step you finished. Leave blank any you could not do.
+          </p>
+
+          {reportSteps.length > 0 ? (
+            <div className="space-y-2">
+              {reportSteps.map((step, i) => (
+                <label
+                  key={i}
+                  className="flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm active:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0 accent-green-600"
+                    checked={!!checkedSteps[i]}
+                    onChange={(e) =>
+                      setCheckedSteps((prev) => ({
+                        ...prev,
+                        [i]: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span className="text-gray-800 leading-snug">{step}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">No checklist on this campaign.</p>
+          )}
+
           <label className="block text-xs font-medium text-gray-600">
-            What you tried *
+            Any problem? (optional)
             <textarea
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm min-h-[80px]"
-              value={whatTried}
-              onChange={(e) => setWhatTried(e.target.value)}
-              placeholder="Steps you followed…"
+              className="mt-1 w-full border rounded-md px-3 py-2 text-sm min-h-[70px]"
+              value={problemNote}
+              onChange={(e) => setProblemNote(e.target.value)}
+              placeholder="e.g. Button did not work, page was slow, text wrong…"
             />
           </label>
+
           <label className="block text-xs font-medium text-gray-600">
-            Expected
-            <input
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
-              value={expected}
-              onChange={(e) => setExpected(e.target.value)}
-            />
-          </label>
-          <label className="block text-xs font-medium text-gray-600">
-            What actually happened
-            <textarea
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm min-h-[60px]"
-              value={actual}
-              onChange={(e) => setActual(e.target.value)}
-            />
-          </label>
-          <label className="block text-xs font-medium text-gray-600">
-            Severity
+            How was it?
             <select
               className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
               value={severity}
@@ -459,17 +513,19 @@ export default function TestingPage() {
               ))}
             </select>
           </label>
+
           <label className="block text-xs font-medium text-gray-600">
-            Device / browser
+            Your phone (optional)
             <input
               className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
               value={device}
               onChange={(e) => setDevice(e.target.value)}
-              placeholder="e.g. Android Chrome, iPhone Safari, PWA"
+              placeholder="e.g. Android, iPhone, PWA"
             />
           </label>
-          <div className="flex gap-2">
-            <Button onClick={submitReport} disabled={submitting}>
+
+          <div className="flex gap-2 pt-1">
+            <Button onClick={submitReport} disabled={submitting} className="flex-1">
               {submitting ? "Sending…" : "Submit report"}
             </Button>
             <Button
@@ -532,7 +588,7 @@ export default function TestingPage() {
                   <>
                     {statusBadge(a.status)}
                     {a.status === "claimed" && !reportedIds.has(a.id) && (
-                      <Button size="sm" onClick={() => setReportFor(a)}>
+                      <Button size="sm" onClick={() => openReportForm(a)}>
                         Submit report
                       </Button>
                     )}
