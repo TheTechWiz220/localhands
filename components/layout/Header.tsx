@@ -69,24 +69,27 @@ export function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b shadow-sm">
-      <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-bold text-green-700">
+      <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between gap-2">
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 font-bold text-green-700 shrink-0"
+        >
           <Hand className="h-6 w-6" />
           <span className="text-lg">LocalHands</span>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {email && (
             <Link
               href="/testing"
-              className="text-xs text-gray-500 hover:text-green-700"
+              className="text-xs text-gray-500 hover:text-green-700 shrink-0"
             >
-              Testing
+              Test
             </Link>
           )}
           {isAdmin && (
             <Link
               href="/admin"
-              className="text-xs text-gray-500 hover:text-green-700"
+              className="text-xs text-gray-500 hover:text-green-700 shrink-0"
             >
               Admin
             </Link>
@@ -97,7 +100,7 @@ export function Header() {
             <>
               <Link
                 href="/profile"
-                className="text-sm text-gray-600 hover:text-green-700 max-w-[120px] truncate"
+                className="text-sm text-gray-600 hover:text-green-700 max-w-[72px] sm:max-w-[100px] truncate"
                 title={email}
               >
                 {email.split("@")[0]}
@@ -105,9 +108,9 @@ export function Header() {
               <button
                 type="button"
                 onClick={signOut}
-                className="text-sm font-medium text-green-700 hover:underline"
+                className="text-sm font-medium text-green-700 hover:underline shrink-0"
               >
-                Sign out
+                Out
               </button>
             </>
           ) : (
