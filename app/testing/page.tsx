@@ -62,7 +62,6 @@ export default function TestingPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
 
-  // Admin create form (same page — no extra navigation)
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
@@ -90,20 +89,27 @@ export default function TestingPage() {
       .eq("id", user.id)
       .maybeSingle();
     const admin = profile?.role === "admin";
-    setIsAdmin(admin);
+    setIsAdmin(!!admin);
 
-    // Testers: open only. Admin: all statuses so they can open from here
-    let campQuery = supabase
-      .from("test_campaigns")
-      .select(
-        "id, title, brief, checklist, status, max_slots, deadline, tester_reward"
-      )
-      .order("created_at", { ascending: false });
-    if (!admin) {
-      campQuery = campQuery.eq("status", "open");
+    const selectCols =
+      "id, title, brief, checklist, status, max_slots, deadline, tester_reward";
+
+    let camps: Campaign[] = [];
+    if (admin) {
+      const { data } = await supabase
+        .from("test_campaigns")
+        .select(selectCols)
+        .order("created_at", { ascending: false });
+      camps = (data as Campaign[]) || [];
+    } else {
+      const { data } = await supabase
+        .from("test_campaigns")
+        .select(selectCols)
+        .eq("status", "open")
+        .order("created_at", { ascending: false });
+      camps = (data as Campaign[]) || [];
     }
-    const { data: camps } = await campQuery;
-    setCampaigns((camps as Campaign[]) || []);
+    setCampaigns(camps);
 
     const { data: assigns } = await supabase
       .from("test_assignments")
@@ -118,7 +124,7 @@ export default function TestingPage() {
       new Set(((reps as Report[]) || []).map((r) => r.assignment_id))
     );
 
-    const ids = ((camps as Campaign[]) || []).map((c) => c.id);
+    const ids = camps.map((c) => c.id);
     if (ids.length) {
       const { data: allAssigns } = await supabase
         .from("test_assignments")
@@ -129,6 +135,8 @@ export default function TestingPage() {
         counts[a.campaign_id] = (counts[a.campaign_id] || 0) + 1;
       });
       setSlotCounts(counts);
+    } else {
+      setSlotCounts({});
     }
 
     setLoading(false);
@@ -148,19 +156,15 @@ export default function TestingPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const { data, error } = await supabase
-      .from("test_campaigns")
-      .insert({
-        title: title.trim(),
-        brief: brief.trim(),
-        checklist: checklist.trim(),
-        max_slots: maxSlots,
-        tester_reward: testerReward,
-        status: "open",
-        created_by: user?.id,
-      })
-      .select("id")
-      .single();
+    const { error } = await supabase.from("test_campaigns").insert({
+      title: title.trim(),
+      brief: brief.trim(),
+      checklist: checklist.trim(),
+      max_slots: maxSlots,
+      tester_reward: testerReward,
+      status: "open",
+      created_by: user?.id,
+    });
     setSaving(false);
     if (error) {
       setMessage(error.message);
@@ -170,11 +174,7 @@ export default function TestingPage() {
     setBrief("");
     setChecklist("");
     setShowCreate(false);
-    setMessage(
-      data
-        ? "Campaign is open — testers can claim it now."
-        : "Campaign created."
-    );
+    setMessage("Campaign is open — testers can claim it now.");
     await load();
   }
 
@@ -202,7 +202,7 @@ export default function TestingPage() {
     setActiveClaim(null);
     if (error) {
       setMessage(
-        error.message.includes("unique")
+        error.message.toLowerCase().includes("unique")
           ? "You already claimed this campaign."
           : error.message
       );
