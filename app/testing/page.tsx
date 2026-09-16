@@ -35,13 +35,15 @@ type Report = {
   assignment_id: string;
 };
 
-const severityOptions = [
+type Severity = "ok" | "blocker" | "annoying" | "typo";
+
+const severityOptions: { value: Severity; label: string }[] = [
+  { value: "ok", label: "Everything worked fine" },
   { value: "blocker", label: "Something blocked me" },
   { value: "annoying", label: "It worked but was annoying" },
   { value: "typo", label: "Small issue / typo / polish" },
-] as const;
+];
 
-/** Split campaign checklist text into tickable steps */
 function parseChecklistSteps(checklist: string): string[] {
   return checklist
     .split(/\n+/)
@@ -61,9 +63,7 @@ export default function TestingPage() {
   const [reportFor, setReportFor] = useState<Assignment | null>(null);
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
   const [problemNote, setProblemNote] = useState("");
-  const [severity, setSeverity] = useState<"blocker" | "annoying" | "typo">(
-    "annoying"
-  );
+  const [severity, setSeverity] = useState<Severity>("ok");
   const [device, setDevice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -157,7 +157,7 @@ export default function TestingPage() {
     setReportFor(a);
     setCheckedSteps({});
     setProblemNote("");
-    setSeverity("annoying");
+    setSeverity("ok");
     setDevice("");
     setMessage(null);
   }
@@ -245,7 +245,7 @@ export default function TestingPage() {
       steps.length > 0
         ? [
             "Steps completed:",
-            ...done.map((s, i) => `✓ ${s}`),
+            ...done.map((s) => `✓ ${s}`),
             ...(skipped.length
               ? ["", "Not done / skipped:", ...skipped.map((s) => `○ ${s}`)]
               : []),
@@ -280,7 +280,7 @@ export default function TestingPage() {
     setCheckedSteps({});
     setProblemNote("");
     setDevice("");
-    setSeverity("annoying");
+    setSeverity("ok");
     setMessage("Report submitted — thank you.");
     await load();
   }
@@ -374,8 +374,7 @@ export default function TestingPage() {
           Testing
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Claim a campaign, tick the steps you finished, tell us if anything
-          went wrong.
+          Claim a campaign, tick the steps you finished, tell us how it went.
         </p>
       </div>
 
@@ -488,23 +487,11 @@ export default function TestingPage() {
           )}
 
           <label className="block text-xs font-medium text-gray-600">
-            Any problem? (optional)
-            <textarea
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm min-h-[70px]"
-              value={problemNote}
-              onChange={(e) => setProblemNote(e.target.value)}
-              placeholder="e.g. Button did not work, page was slow, text wrong…"
-            />
-          </label>
-
-          <label className="block text-xs font-medium text-gray-600">
             How was it?
             <select
               className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
               value={severity}
-              onChange={(e) =>
-                setSeverity(e.target.value as "blocker" | "annoying" | "typo")
-              }
+              onChange={(e) => setSeverity(e.target.value as Severity)}
             >
               {severityOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -512,6 +499,16 @@ export default function TestingPage() {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="block text-xs font-medium text-gray-600">
+            Any problem? (optional)
+            <textarea
+              className="mt-1 w-full border rounded-md px-3 py-2 text-sm min-h-[70px]"
+              value={problemNote}
+              onChange={(e) => setProblemNote(e.target.value)}
+              placeholder="Only if something went wrong…"
+            />
           </label>
 
           <label className="block text-xs font-medium text-gray-600">
