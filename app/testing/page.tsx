@@ -44,6 +44,16 @@ const severityOptions: { value: Severity; label: string }[] = [
   { value: "typo", label: "Small issue / typo / polish" },
 ];
 
+const deviceOptions = [
+  "Android phone (Chrome)",
+  "Android phone (PWA / installed)",
+  "iPhone (Safari)",
+  "iPhone (PWA / installed)",
+  "Tablet",
+  "Computer / laptop",
+  "Other",
+];
+
 function parseChecklistSteps(checklist: string): string[] {
   return checklist
     .split(/\n+/)
@@ -261,7 +271,7 @@ export default function TestingPage() {
       expected: null,
       actual: problemNote.trim() || null,
       severity,
-      device: device.trim() || null,
+      device: device || null,
     });
 
     if (repErr) {
@@ -513,12 +523,18 @@ export default function TestingPage() {
 
           <label className="block text-xs font-medium text-gray-600">
             Your phone (optional)
-            <input
+            <select
               className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
               value={device}
               onChange={(e) => setDevice(e.target.value)}
-              placeholder="e.g. Android, iPhone, PWA"
-            />
+            >
+              <option value="">Select…</option>
+              {deviceOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="flex gap-2 pt-1">
