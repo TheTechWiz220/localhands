@@ -40,6 +40,16 @@ type ReportRow = {
   created_at: string;
 };
 
+type PaymentRow = {
+  id: string;
+  assignment_id: string;
+  amount: number;
+  method: string;
+  wave_ref: string | null;
+  notes: string | null;
+  paid_at: string;
+};
+
 export default function AdminTestingPage() {
   const supabase = createClient();
   const [access, setAccess] = useState<"loading" | "denied" | "allowed">(
@@ -48,6 +58,7 @@ export default function AdminTestingPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [reports, setReports] = useState<ReportRow[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
   const [checklist, setChecklist] = useState("");
@@ -57,6 +68,13 @@ export default function AdminTestingPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
+
+  // Mark paid form
+  const [payFor, setPayFor] = useState<AssignmentRow | null>(null);
+  const [waveRef, setWaveRef] = useState("");
+  const [payMethod, setPayMethod] = useState<"wave" | "cash" | "other">("wave");
+  const [payNotes, setPayNotes] = useState("");
+  const [paying, setPaying] = useState(false);
 
   const load = useCallback(async () => {
     const {
@@ -88,10 +106,9 @@ export default function AdminTestingPage() {
       .select("id, campaign_id, user_id, status, claimed_at, submitted_at")
       .order("claimed_at", { ascending: false });
 
-    // attach names
     const rows = (assigns as AssignmentRow[]) || [];
     const userIds = [...new Set(rows.map((r) => r.user_id))];
-    let nameMap: Record<string, string | null> = {};
+    const nameMap: Record<string, string | null> = {};
     if (userIds.length) {
       const { data: profs } = await supabase
         .from("profiles")
@@ -113,6 +130,12 @@ export default function AdminTestingPage() {
       .select("*")
       .order("created_at", { ascending: false });
     setReports((reps as ReportRow[]) || []);
+
+    const { data: pays } = await supabase
+      .from("test_payments")
+      .select("id, assignment_id, amount, method, wave_ref, notes, paid_at")
+      .order("paid_at", { ascending: false });
+    setPayments((pays as PaymentRow[]) || []);
   }, [supabase]);
 
   useEffect(() => {
@@ -172,6 +195,63 @@ export default function AdminTestingPage() {
     }
   }
 
+  async function confirmPaid() {
+    if (!payFor) return;
+    const camp = campaigns.find((c) => c.id === payFor.campaign_id);
+    const amount = Number(camp?.tester_reward || 0);
+
+    if (payMethod === "wave" && !waveRef.trim()) {
+      setMsg("Add Wave transaction reference (or switch method to Cash).");
+      return;
+    }
+
+    setPaying(true);
+    setMsg(null);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error: payErr } = await supabase.from("test_payments").insert({
+      assignment_id: payFor.id,
+      amount,
+      method: payMethod,
+      wave_ref: waveRef.trim() || null,
+      notes: payNotes.trim() || null,
+      paid_by: user?.id,
+      paid_at: new Date().toISOString(),
+    });
+
+    if (payErr) {
+      setPaying(false);
+      setMsg(
+        payErr.message.includes("unique")
+          ? "Payment already recorded for this tester."
+          : payErr.message.includes("test_payments")
+            ? "Run testing-payments.sql in Supabase first."
+            : payErr.message
+      );
+      return;
+    }
+
+    const { error: stErr } = await supabase
+      .from("test_assignments")
+      .update({ status: "paid" })
+      .eq("id", payFor.id);
+
+    setPaying(false);
+    if (stErr) {
+      setMsg(stErr.message);
+      return;
+    }
+
+    setPayFor(null);
+    setWaveRef("");
+    setPayNotes("");
+    setPayMethod("wave");
+    setMsg(`Paid ${amount.toLocaleString()} GMD recorded.`);
+    await load();
+  }
+
   if (access === "loading") {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
@@ -196,6 +276,15 @@ export default function AdminTestingPage() {
     ? assignments.filter((a) => a.campaign_id === selectedCampaign)
     : assignments;
 
+  // Payment totals (like job commission monitor)
+  const acceptedUnpaid = assignments.filter((a) => a.status === "accepted");
+  const paidAssigns = assignments.filter((a) => a.status === "paid");
+  const dueAmount = acceptedUnpaid.reduce((sum, a) => {
+    const c = campaigns.find((x) => x.id === a.campaign_id);
+    return sum + Number(c?.tester_reward || 0);
+  }, 0);
+  const paidAmount = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-2">
@@ -212,6 +301,133 @@ export default function AdminTestingPage() {
         <p className="text-sm bg-green-50 border border-green-100 rounded-lg px-3 py-2">
           {msg}
         </p>
+      )}
+
+      {/* Campaign payments report */}
+      <section className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
+        <h2 className="font-semibold text-sm text-green-900">
+          Campaign payments (Wave-ready)
+        </h2>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-white rounded-lg p-2 border">
+            <p className="text-lg font-bold text-amber-700">
+              {dueAmount.toLocaleString()}
+            </p>
+            <p className="text-[10px] text-gray-500">Due GMD</p>
+            <p className="text-[10px] text-gray-400">
+              {acceptedUnpaid.length} waiting
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-2 border">
+            <p className="text-lg font-bold text-green-700">
+              {paidAmount.toLocaleString()}
+            </p>
+            <p className="text-[10px] text-gray-500">Paid GMD</p>
+            <p className="text-[10px] text-gray-400">{paidAssigns.length} paid</p>
+          </div>
+          <div className="bg-white rounded-lg p-2 border">
+            <p className="text-lg font-bold text-gray-800">
+              {payments.length}
+            </p>
+            <p className="text-[10px] text-gray-500">Records</p>
+            <p className="text-[10px] text-gray-400">ledger</p>
+          </div>
+        </div>
+        {payments.length > 0 && (
+          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            {payments.slice(0, 20).map((p) => {
+              const a = assignments.find((x) => x.id === p.assignment_id);
+              const c = a
+                ? campaigns.find((x) => x.id === a.campaign_id)
+                : null;
+              return (
+                <div
+                  key={p.id}
+                  className="text-xs bg-white rounded-md border px-2 py-1.5 flex justify-between gap-2"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
+                      {a?.profiles?.full_name || "Tester"}
+                      {c ? ` · ${c.title}` : ""}
+                    </p>
+                    <p className="text-gray-500">
+                      {p.method}
+                      {p.wave_ref ? ` · ${p.wave_ref}` : ""}
+                      {" · "}
+                      {new Date(p.paid_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span className="font-semibold text-green-700 whitespace-nowrap">
+                    {Number(p.amount).toLocaleString()} GMD
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-[11px] text-green-800">
+          Pay testers on Wave, then record ref here. API can auto-fill later.
+        </p>
+      </section>
+
+      {payFor && (
+        <div className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
+          <h2 className="font-semibold text-sm">Record payment</h2>
+          <p className="text-xs text-gray-600">
+            {payFor.profiles?.full_name || "Tester"} ·{" "}
+            {campaigns.find((c) => c.id === payFor.campaign_id)?.title}
+            {" · "}
+            {Number(
+              campaigns.find((c) => c.id === payFor.campaign_id)?.tester_reward ||
+                0
+            ).toLocaleString()}{" "}
+            GMD
+          </p>
+          <label className="block text-xs font-medium text-gray-600">
+            Method
+            <select
+              className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+              value={payMethod}
+              onChange={(e) =>
+                setPayMethod(e.target.value as "wave" | "cash" | "other")
+              }
+            >
+              <option value="wave">Wave</option>
+              <option value="cash">Cash</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="block text-xs font-medium text-gray-600">
+            Wave / payment reference {payMethod === "wave" ? "*" : "(optional)"}
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+              value={waveRef}
+              onChange={(e) => setWaveRef(e.target.value)}
+              placeholder="Wave transaction ID or receipt no."
+            />
+          </label>
+          <label className="block text-xs font-medium text-gray-600">
+            Notes (optional)
+            <input
+              className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
+              value={payNotes}
+              onChange={(e) => setPayNotes(e.target.value)}
+              placeholder="e.g. paid to 70XXXXXX"
+            />
+          </label>
+          <div className="flex gap-2">
+            <Button onClick={confirmPaid} disabled={paying} className="flex-1">
+              {paying ? "Saving…" : "Confirm paid"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPayFor(null)}
+              disabled={paying}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
 
       <section className="rounded-xl border bg-white p-4 space-y-3">
@@ -336,6 +552,8 @@ export default function AdminTestingPage() {
         )}
         {filteredAssigns.map((a) => {
           const report = reports.find((r) => r.assignment_id === a.id);
+          const payment = payments.find((p) => p.assignment_id === a.id);
+          const camp = campaigns.find((c) => c.id === a.campaign_id);
           return (
             <div key={a.id} className="rounded-xl border bg-white p-3 space-y-2">
               <p className="text-sm font-medium">
@@ -366,6 +584,13 @@ export default function AdminTestingPage() {
                   )}
                 </div>
               )}
+              {payment && (
+                <p className="text-xs text-green-800 bg-green-50 rounded-md px-2 py-1">
+                  Paid {Number(payment.amount).toLocaleString()} GMD via{" "}
+                  {payment.method}
+                  {payment.wave_ref ? ` · ${payment.wave_ref}` : ""}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {a.status === "submitted" && (
                   <>
@@ -384,12 +609,12 @@ export default function AdminTestingPage() {
                     </Button>
                   </>
                 )}
-                {a.status === "accepted" && (
-                  <Button
-                    size="sm"
-                    onClick={() => setAssignmentStatus(a.id, "paid")}
-                  >
-                    Mark paid
+                {a.status === "accepted" && !payment && (
+                  <Button size="sm" onClick={() => setPayFor(a)}>
+                    Record Wave / pay
+                      {camp
+                        ? ` (${Number(camp.tester_reward).toLocaleString()} GMD)`
+                        : ""}
                   </Button>
                 )}
               </div>
