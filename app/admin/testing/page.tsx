@@ -69,7 +69,6 @@ export default function AdminTestingPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
 
-  // Mark paid form
   const [payFor, setPayFor] = useState<AssignmentRow | null>(null);
   const [waveRef, setWaveRef] = useState("");
   const [payMethod, setPayMethod] = useState<"wave" | "cash" | "other">("wave");
@@ -224,7 +223,7 @@ export default function AdminTestingPage() {
     if (payErr) {
       setPaying(false);
       setMsg(
-        payErr.message.includes("unique")
+        payErr.message.toLowerCase().includes("unique")
           ? "Payment already recorded for this tester."
           : payErr.message.includes("test_payments")
             ? "Run testing-payments.sql in Supabase first."
@@ -248,7 +247,7 @@ export default function AdminTestingPage() {
     setWaveRef("");
     setPayNotes("");
     setPayMethod("wave");
-    setMsg(`Paid ${amount.toLocaleString()} GMD recorded.`);
+    setMsg(`Paid ${amount.toLocaleString()} GMD recorded in ledger.`);
     await load();
   }
 
@@ -276,14 +275,32 @@ export default function AdminTestingPage() {
     ? assignments.filter((a) => a.campaign_id === selectedCampaign)
     : assignments;
 
-  // Payment totals (like job commission monitor)
+  const paymentByAssignment = new Map(
+    payments.map((p) => [p.assignment_id, p])
+  );
+
   const acceptedUnpaid = assignments.filter((a) => a.status === "accepted");
   const paidAssigns = assignments.filter((a) => a.status === "paid");
+  const paidMissingLedger = paidAssigns.filter(
+    (a) => !paymentByAssignment.has(a.id)
+  );
+
   const dueAmount = acceptedUnpaid.reduce((sum, a) => {
     const c = campaigns.find((x) => x.id === a.campaign_id);
     return sum + Number(c?.tester_reward || 0);
   }, 0);
-  const paidAmount = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  // Ledger total (real records)
+  const paidFromLedger = payments.reduce(
+    (sum, p) => sum + Number(p.amount || 0),
+    0
+  );
+  // Estimated for old "Mark paid" without ledger row
+  const paidMissingEstimate = paidMissingLedger.reduce((sum, a) => {
+    const c = campaigns.find((x) => x.id === a.campaign_id);
+    return sum + Number(c?.tester_reward || 0);
+  }, 0);
+  const paidAmountDisplay = paidFromLedger + paidMissingEstimate;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
@@ -303,7 +320,6 @@ export default function AdminTestingPage() {
         </p>
       )}
 
-      {/* Campaign payments report */}
       <section className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
         <h2 className="font-semibold text-sm text-green-900">
           Campaign payments (Wave-ready)
@@ -320,19 +336,31 @@ export default function AdminTestingPage() {
           </div>
           <div className="bg-white rounded-lg p-2 border">
             <p className="text-lg font-bold text-green-700">
-              {paidAmount.toLocaleString()}
+              {paidAmountDisplay.toLocaleString()}
             </p>
             <p className="text-[10px] text-gray-500">Paid GMD</p>
-            <p className="text-[10px] text-gray-400">{paidAssigns.length} paid</p>
+            <p className="text-[10px] text-gray-400">
+              {paidAssigns.length} paid
+              {paidMissingLedger.length > 0
+                ? ` · ${paidMissingLedger.length} need ledger`
+                : ""}
+            </p>
           </div>
           <div className="bg-white rounded-lg p-2 border">
-            <p className="text-lg font-bold text-gray-800">
-              {payments.length}
-            </p>
+            <p className="text-lg font-bold text-gray-800">{payments.length}</p>
             <p className="text-[10px] text-gray-500">Records</p>
-            <p className="text-[10px] text-gray-400">ledger</p>
+            <p className="text-[10px] text-gray-400">in ledger</p>
           </div>
         </div>
+
+        {paidMissingLedger.length > 0 && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1.5">
+            {paidMissingLedger.length} tester(s) marked paid before the ledger.
+            Open the assignment below and tap <b>Add to ledger</b> to record
+            amount + Wave ref.
+          </p>
+        )}
+
         {payments.length > 0 && (
           <div className="space-y-1.5 max-h-40 overflow-y-auto">
             {payments.slice(0, 20).map((p) => {
@@ -366,13 +394,14 @@ export default function AdminTestingPage() {
           </div>
         )}
         <p className="text-[11px] text-green-800">
-          Pay testers on Wave, then record ref here. API can auto-fill later.
+          Pay on Wave, then record ref here. Paid GMD uses ledger amounts; old
+          marks without a record are estimated until you add them.
         </p>
       </section>
 
       {payFor && (
         <div className="rounded-xl border bg-white p-4 space-y-3 shadow-sm">
-          <h2 className="font-semibold text-sm">Record payment</h2>
+          <h2 className="font-semibold text-sm">Record payment in ledger</h2>
           <p className="text-xs text-gray-600">
             {payFor.profiles?.full_name || "Tester"} ·{" "}
             {campaigns.find((c) => c.id === payFor.campaign_id)?.title}
@@ -417,7 +446,7 @@ export default function AdminTestingPage() {
           </label>
           <div className="flex gap-2">
             <Button onClick={confirmPaid} disabled={paying} className="flex-1">
-              {paying ? "Saving…" : "Confirm paid"}
+              {paying ? "Saving…" : "Save to ledger"}
             </Button>
             <Button
               variant="outline"
@@ -552,8 +581,9 @@ export default function AdminTestingPage() {
         )}
         {filteredAssigns.map((a) => {
           const report = reports.find((r) => r.assignment_id === a.id);
-          const payment = payments.find((p) => p.assignment_id === a.id);
+          const payment = paymentByAssignment.get(a.id);
           const camp = campaigns.find((c) => c.id === a.campaign_id);
+          const needsLedger = a.status === "paid" && !payment;
           return (
             <div key={a.id} className="rounded-xl border bg-white p-3 space-y-2">
               <p className="text-sm font-medium">
@@ -586,9 +616,15 @@ export default function AdminTestingPage() {
               )}
               {payment && (
                 <p className="text-xs text-green-800 bg-green-50 rounded-md px-2 py-1">
-                  Paid {Number(payment.amount).toLocaleString()} GMD via{" "}
+                  Ledger: {Number(payment.amount).toLocaleString()} GMD via{" "}
                   {payment.method}
                   {payment.wave_ref ? ` · ${payment.wave_ref}` : ""}
+                </p>
+              )}
+              {needsLedger && (
+                <p className="text-xs text-amber-800 bg-amber-50 rounded-md px-2 py-1">
+                  Marked paid, but no ledger row yet (amount not counted until
+                  recorded).
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
@@ -612,9 +648,17 @@ export default function AdminTestingPage() {
                 {a.status === "accepted" && !payment && (
                   <Button size="sm" onClick={() => setPayFor(a)}>
                     Record Wave / pay
-                      {camp
-                        ? ` (${Number(camp.tester_reward).toLocaleString()} GMD)`
-                        : ""}
+                    {camp
+                      ? ` (${Number(camp.tester_reward).toLocaleString()} GMD)`
+                      : ""}
+                  </Button>
+                )}
+                {needsLedger && (
+                  <Button size="sm" onClick={() => setPayFor(a)}>
+                    Add to ledger
+                    {camp
+                      ? ` (${Number(camp.tester_reward).toLocaleString()} GMD)`
+                      : ""}
                   </Button>
                 )}
               </div>
