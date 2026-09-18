@@ -20,6 +20,7 @@ type Campaign = {
   checklist: string;
   status: string;
   max_slots: number;
+  slots_claimed: number;
   deadline: string | null;
   tester_reward: number;
 };
@@ -68,7 +69,6 @@ export default function TestingPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [slotCounts, setSlotCounts] = useState<Record<string, number>>({});
   const [activeClaim, setActiveClaim] = useState<string | null>(null);
   const [reportFor, setReportFor] = useState<Assignment | null>(null);
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
@@ -108,8 +108,9 @@ export default function TestingPage() {
     const admin = profile?.role === "admin";
     setIsAdmin(!!admin);
 
+    // slots_claimed is on the campaign row (public) so every user sees real fill level
     const selectCols =
-      "id, title, brief, checklist, status, max_slots, deadline, tester_reward";
+      "id, title, brief, checklist, status, max_slots, slots_claimed, deadline, tester_reward";
 
     let camps: Campaign[] = [];
     if (admin) {
@@ -126,7 +127,12 @@ export default function TestingPage() {
         .order("created_at", { ascending: false });
       camps = (data as Campaign[]) || [];
     }
-    setCampaigns(camps);
+    setCampaigns(
+      (camps || []).map((c) => ({
+        ...c,
+        slots_claimed: Number(c.slots_claimed || 0),
+      }))
+    );
 
     const { data: assigns } = await supabase
       .from("test_assignments")
@@ -140,21 +146,6 @@ export default function TestingPage() {
     setReportedIds(
       new Set(((reps as Report[]) || []).map((r) => r.assignment_id))
     );
-
-    const ids = camps.map((c) => c.id);
-    if (ids.length) {
-      const { data: allAssigns } = await supabase
-        .from("test_assignments")
-        .select("campaign_id")
-        .in("campaign_id", ids);
-      const counts: Record<string, number> = {};
-      (allAssigns || []).forEach((a: { campaign_id: string }) => {
-        counts[a.campaign_id] = (counts[a.campaign_id] || 0) + 1;
-      });
-      setSlotCounts(counts);
-    } else {
-      setSlotCounts({});
-    }
 
     setLoading(false);
   }, [supabase]);
@@ -565,7 +556,7 @@ export default function TestingPage() {
         )}
         {openCampaigns.map((c) => {
           const a = assignmentFor(c.id);
-          const used = slotCounts[c.id] || 0;
+          const used = Number(c.slots_claimed || 0);
           const full = used >= c.max_slots;
           return (
             <div
@@ -646,7 +637,9 @@ export default function TestingPage() {
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{c.title}</p>
-                <p className="text-xs text-gray-500">{c.status}</p>
+                <p className="text-xs text-gray-500">
+                  {c.status} · {c.slots_claimed || 0}/{c.max_slots} slots
+                </p>
               </div>
               {c.status !== "open" && (
                 <Button size="sm" onClick={() => setCampaignStatus(c.id, "open")}>
