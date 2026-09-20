@@ -95,6 +95,7 @@ export default function ApplyPage() {
   function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Some Android pickers return empty type — still allow common image extensions
     const isImage =
       file.type.startsWith("image/") ||
       /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name);
@@ -108,6 +109,7 @@ export default function ApplyPage() {
     }
     setError("");
     setAvatarFile(file);
+    // FileReader data URLs are more reliable than blob: on Android + Google Photos
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : null;
@@ -161,15 +163,30 @@ export default function ApplyPage() {
   async function uploadAvatar(userId: string): Promise<string | null> {
     if (!avatarFile) return existingAvatarUrl;
 
-    const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    // Android / Google Photos often returns empty MIME — force a safe type
+    const name = avatarFile.name || "avatar.jpg";
+    let ext = name.split(".").pop()?.toLowerCase() || "jpg";
+    if (!["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) ext = "jpg";
+    const contentType =
+      avatarFile.type && avatarFile.type.startsWith("image/")
+        ? avatarFile.type
+        : ext === "png"
+          ? "image/png"
+          : ext === "webp"
+            ? "image/webp"
+            : "image/jpeg";
+
     const path = `${userId}/avatar-${Date.now()}.${ext}`;
+
+    // Re-wrap as Blob so the upload body is always a valid binary with MIME
+    const blob = new Blob([await avatarFile.arrayBuffer()], { type: contentType });
 
     const { error: storageError } = await supabase.storage
       .from("proof-media")
-      .upload(path, avatarFile, {
+      .upload(path, blob, {
         cacheControl: "3600",
-        upsert: false,
-        contentType: avatarFile.type || "image/jpeg",
+        upsert: true,
+        contentType,
       });
 
     if (storageError) {
@@ -245,13 +262,20 @@ export default function ApplyPage() {
       return;
     }
 
+    // Avatar is optional — never block the whole application on photo upload
     let avatarUrl: string | null = existingAvatarUrl;
-    try {
-      avatarUrl = await uploadAvatar(userId);
-    } catch (e: any) {
-      setLoading(false);
-      setError(e?.message || "Failed to upload profile photo.");
-      return;
+    let avatarWarning = "";
+    if (avatarFile) {
+      try {
+        avatarUrl = await uploadAvatar(userId);
+      } catch (e: any) {
+        console.error("Avatar upload failed:", e);
+        avatarWarning =
+          e?.message ||
+          "Profile photo could not upload. Application will still be submitted.";
+        // Keep existing avatar if any; otherwise leave null
+        avatarUrl = existingAvatarUrl;
+      }
     }
 
     const { error: profileError } = await supabase.from("profiles").upsert({
@@ -299,16 +323,21 @@ export default function ApplyPage() {
         await uploadProofMedia(userId);
       }
     } catch (e: any) {
-      setLoading(false);
-      setError(
-        e?.message?.includes("Bucket") || e?.message?.includes("not found")
-          ? "Storage bucket missing. Create a public bucket named proof-media in Supabase Storage."
-          : e?.message || "Failed to upload proof photos."
-      );
-      return;
+      // Proof photos help verification but should not block the application
+      console.error("Proof media upload failed:", e);
+      if (!avatarWarning) {
+        avatarWarning =
+          e?.message?.includes("Bucket") || e?.message?.includes("not found")
+            ? "Storage bucket issue — proof photos skipped. Application still submitted."
+            : "Some proof photos could not upload. Application still submitted.";
+      }
     }
 
     setLoading(false);
+    if (avatarWarning) {
+      // Soft warning only — application already saved
+      setError(avatarWarning);
+    }
     setStep("success");
   }
 
