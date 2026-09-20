@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import { Hand, CheckCircle2, Loader2, ImagePlus, X } from "lucide-react";
+import { Hand, CheckCircle2, Loader2, ImagePlus, X, Camera } from "lucide-react";
 import Link from "next/link";
 import { SKILLS, AREAS } from "@/lib/skills";
 
@@ -21,12 +21,17 @@ export default function ApplyPage() {
   const [confirmAdult, setConfirmAdult] = useState(false);
   const [fullName, setFullName] = useState("");
   const [location, setLocation] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [bio, setBio] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -51,6 +56,11 @@ export default function ApplyPage() {
         if (profile.full_name) setFullName(profile.full_name);
         if (profile.location_area) setLocation(profile.location_area);
         if (profile.bio) setBio(profile.bio);
+        if (profile.whatsapp_phone) setWhatsapp(profile.whatsapp_phone);
+        if (profile.avatar_url) {
+          setExistingAvatarUrl(profile.avatar_url);
+          setAvatarPreview(profile.avatar_url);
+        }
 
         if (
           profile.role === "worker" &&
@@ -80,6 +90,34 @@ export default function ApplyPage() {
       setSelectedSkills((prev) => [...prev, s]);
     }
     setCustomSkill("");
+  }
+
+  function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Avatar must be an image (JPG, PNG, WebP).");
+      return;
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setError(`Avatar must be under ${MAX_SIZE_MB}MB.`);
+      return;
+    }
+    setError("");
+    if (avatarPreview && avatarPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    e.target.value = "";
+  }
+
+  function clearAvatar() {
+    if (avatarPreview && avatarPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+    setAvatarFile(null);
+    setAvatarPreview(existingAvatarUrl);
   }
 
   function onFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -112,6 +150,31 @@ export default function ApplyPage() {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
+  }
+
+  async function uploadAvatar(userId: string): Promise<string | null> {
+    if (!avatarFile) return existingAvatarUrl;
+
+    const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${userId}/avatar-${Date.now()}.${ext}`;
+
+    const { error: storageError } = await supabase.storage
+      .from("proof-media")
+      .upload(path, avatarFile, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: avatarFile.type,
+      });
+
+    if (storageError) {
+      throw new Error(`Avatar upload: ${storageError.message}`);
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("proof-media").getPublicUrl(path);
+
+    return `${publicUrl}?t=${Date.now()}`;
   }
 
   async function uploadProofMedia(userId: string) {
@@ -176,11 +239,22 @@ export default function ApplyPage() {
       return;
     }
 
+    let avatarUrl: string | null = existingAvatarUrl;
+    try {
+      avatarUrl = await uploadAvatar(userId);
+    } catch (e: any) {
+      setLoading(false);
+      setError(e?.message || "Failed to upload profile photo.");
+      return;
+    }
+
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: userId,
       full_name: fullName.trim(),
       location_area: location,
       bio: bio.trim() || null,
+      whatsapp_phone: whatsapp.trim() || null,
+      avatar_url: avatarUrl,
       role: "worker",
       verification_status: "pending",
       is_verified: false,
@@ -189,7 +263,11 @@ export default function ApplyPage() {
 
     if (profileError) {
       setLoading(false);
-      setError(profileError.message);
+      setError(
+        profileError.message.includes("whatsapp")
+          ? "WhatsApp field missing — contact support or run the profiles migration."
+          : profileError.message
+      );
       return;
     }
 
@@ -295,6 +373,67 @@ export default function ApplyPage() {
       </div>
 
       <div className="rounded-xl border bg-white p-6 space-y-5">
+        {/* Profile photo */}
+        <div>
+          <label className="text-sm font-medium mb-1.5 block">
+            Profile photo
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            A clear face photo helps clients recognise you. Optional but
+            recommended.
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {avatarPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarPreview}
+                  alt="Avatar preview"
+                  className="h-20 w-20 rounded-full object-cover border"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl">
+                  {(fullName || "W")[0].toUpperCase()}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-green-600 text-white flex items-center justify-center shadow border-2 border-white"
+                title="Upload photo"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onAvatarSelected}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => avatarInputRef.current?.click()}
+              >
+                {avatarPreview ? "Change photo" : "Add photo"}
+              </Button>
+              {avatarFile && (
+                <button
+                  type="button"
+                  onClick={clearAvatar}
+                  className="text-xs text-gray-500 hover:text-red-600 text-left"
+                >
+                  Remove new photo
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className="text-sm font-medium mb-1.5 block">Full name *</label>
           <input
@@ -320,6 +459,24 @@ export default function ApplyPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium mb-1.5 block">
+            WhatsApp number
+          </label>
+          <p className="text-xs text-gray-500 mb-1.5">
+            Used after a job is confirmed so the client can reach you. Keep it
+            private until then.
+          </p>
+          <input
+            type="tel"
+            inputMode="tel"
+            placeholder="e.g. 70 123 4567 or +220 70 123 4567"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
+          />
         </div>
 
         <div>
