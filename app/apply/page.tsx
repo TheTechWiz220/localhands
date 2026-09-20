@@ -95,7 +95,11 @@ export default function ApplyPage() {
   function onAvatarSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    // Some Android pickers return empty type — still allow common image extensions
+    const isImage =
+      file.type.startsWith("image/") ||
+      /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name);
+    if (!isImage) {
       setError("Avatar must be an image (JPG, PNG, WebP).");
       return;
     }
@@ -104,18 +108,22 @@ export default function ApplyPage() {
       return;
     }
     setError("");
-    if (avatarPreview && avatarPreview.startsWith("blob:")) {
-      URL.revokeObjectURL(avatarPreview);
-    }
     setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
+    // FileReader data URLs are more reliable than blob: on Android + Google Photos
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : null;
+      if (result) setAvatarPreview(result);
+      else setError("Could not preview that photo. Try another image.");
+    };
+    reader.onerror = () => {
+      setError("Could not read that photo. Try another image.");
+    };
+    reader.readAsDataURL(file);
     e.target.value = "";
   }
 
   function clearAvatar() {
-    if (avatarPreview && avatarPreview.startsWith("blob:")) {
-      URL.revokeObjectURL(avatarPreview);
-    }
     setAvatarFile(null);
     setAvatarPreview(existingAvatarUrl);
   }
@@ -163,7 +171,7 @@ export default function ApplyPage() {
       .upload(path, avatarFile, {
         cacheControl: "3600",
         upsert: false,
-        contentType: avatarFile.type,
+        contentType: avatarFile.type || "image/jpeg",
       });
 
     if (storageError) {
@@ -383,13 +391,18 @@ export default function ApplyPage() {
             recommended.
           </p>
           <div className="flex items-center gap-4">
-            <div className="relative">
+            <div className="relative shrink-0">
               {avatarPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={avatarPreview}
-                  alt="Avatar preview"
-                  className="h-20 w-20 rounded-full object-cover border"
+                  alt=""
+                  className="h-20 w-20 rounded-full object-cover border bg-gray-100"
+                  onError={() => {
+                    setAvatarPreview(null);
+                    setAvatarFile(null);
+                    setError("That photo could not be displayed. Try JPG or PNG.");
+                  }}
                 />
               ) : (
                 <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-2xl">
