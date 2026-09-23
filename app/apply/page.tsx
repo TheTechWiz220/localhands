@@ -661,7 +661,7 @@ export default function ApplyPage() {
         <Button
           className="w-full"
           size="lg"
-          disabled={loading || avatarUploading || proofUploading}
+          disabled={loading || avatarUploading || proofUploading || !confirmAdult || !fullName.trim() || !location || selectedSkills.length === 0}
           onClick={submitApplication}
         >
           {loading ? (
