@@ -11,6 +11,7 @@ export type PendingWorker = {
   location_area: string | null;
   bio: string | null;
   verification_status: string;
+  avatar_url: string | null;
   skills: string[];
   proof_urls: string[];
 };
@@ -34,10 +35,24 @@ export function PendingWorkerCard({
 }: Props) {
   return (
     <div className="border rounded-lg p-4 space-y-3">
-      <div>
-        <h3 className="font-semibold">{w.full_name || "Unnamed worker"}</h3>
-        <p className="text-sm text-gray-500">{w.location_area || "Area not set"}</p>
-        {w.bio && <p className="text-sm text-gray-600 mt-1">{w.bio}</p>}
+      <div className="flex items-start gap-3">
+        {w.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={w.avatar_url}
+            alt=""
+            className="h-14 w-14 rounded-full object-cover border shrink-0"
+          />
+        ) : (
+          <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">
+            {(w.full_name || "?")[0].toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold">{w.full_name || "Unnamed worker"}</h3>
+          <p className="text-sm text-gray-500">{w.location_area || "Area not set"}</p>
+          {w.bio && <p className="text-sm text-gray-600 mt-1">{w.bio}</p>}
+        </div>
       </div>
 
       {w.skills.length > 0 && (
