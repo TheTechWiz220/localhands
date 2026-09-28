@@ -90,6 +90,40 @@ export default function SuspendedPanel() {
     setList((prev) => prev.filter((w) => w.id !== workerId));
   }
 
+  async function resetToClient(workerId: string, workerName: string | null) {
+    const ok = window.confirm(
+      `Reset ${workerName || "this account"} to Client? This removes worker verification state so the account can use Apply as Worker again. The login and profile data will remain.`
+    );
+    if (!ok) return;
+
+    setActingId(workerId);
+    setMessage("");
+    setErrorMsg("");
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        role: "client",
+        verification_status: "pending",
+        is_verified: false,
+        id_verified: false,
+        id_verified_at: null,
+        verification_notes: null,
+        admin_notes: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", workerId);
+
+    setActingId(null);
+    if (error) {
+      setErrorMsg(error.message);
+      return;
+    }
+
+    setMessage("Account reset to Client. It can now use Apply as Worker.");
+    setList((prev) => prev.filter((w) => w.id !== workerId));
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -164,20 +198,31 @@ export default function SuspendedPanel() {
                 ))}
               </div>
             )}
-            <Button
-              size="sm"
-              className="w-full bg-green-700 hover:bg-green-800"
-              disabled={actingId === w.id}
-              onClick={() => reApprove(w.id)}
-            >
-              {actingId === w.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <RotateCcw className="h-4 w-4 mr-1" /> Re-approve
-                </>
-              )}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                className="w-full bg-green-700 hover:bg-green-800"
+                disabled={actingId === w.id}
+                onClick={() => reApprove(w.id)}
+              >
+                {actingId === w.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4 mr-1" /> Re-approve
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full border-blue-300 text-blue-800 hover:bg-blue-50"
+                disabled={actingId === w.id}
+                onClick={() => resetToClient(w.id, w.full_name)}
+              >
+                Reset to Client
+              </Button>
+            </div>
           </div>
         ))
       )}
