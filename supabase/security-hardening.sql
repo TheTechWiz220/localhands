@@ -146,6 +146,46 @@ begin
     raise exception 'Counter offer must belong to the caller';
   end if;
 
+  -- Enforce the intended workflow transitions instead of trusting the client UI.
+  if new.status is distinct from old.status then
+    if new.status = 'countered' then
+      if old.status not in ('pending', 'countered') then
+        raise exception 'Job can only be countered while pending or countered';
+      end if;
+      if new.countered_by <> auth.uid() then
+        raise exception 'Counter offer must belong to the caller';
+      end if;
+    elsif new.status = 'accepted' then
+      if old.status = 'pending' then
+        if auth.uid() <> old.worker_id then
+          raise exception 'Only the assigned worker can accept a pending job';
+        end if;
+      elsif old.status = 'countered' then
+        if auth.uid() = old.countered_by then
+          raise exception 'The sender cannot accept their own counter offer';
+        end if;
+      else
+        raise exception 'Invalid job acceptance transition';
+      end if;
+    elsif new.status = 'declined' then
+      if old.status <> 'pending' or auth.uid() <> old.worker_id then
+        raise exception 'Only the assigned worker can decline a pending job';
+      end if;
+    elsif new.status = 'cancelled' then
+      if old.status not in ('pending', 'open', 'countered')
+         or auth.uid() <> old.client_id then
+        raise exception 'Only the client can cancel an active job';
+      end if;
+    elsif new.status = 'completed' then
+      if old.status <> 'accepted'
+         or (auth.uid() <> old.client_id and auth.uid() <> old.worker_id) then
+        raise exception 'Only a job participant can complete an accepted job';
+      end if;
+    else
+      raise exception 'Invalid job status transition';
+    end if;
+  end if;
+
   return new;
 end;
 $$;
@@ -221,18 +261,27 @@ begin
   where j.id = old.job_id;
 
   if auth.uid() = job_client then
-    if old.status not in ('pending', 'paid')
-       or new.status not in ('paid') then
+    if old.status = 'paid' then
+      if new.status is distinct from old.status
+         or new.amount is distinct from old.amount
+         or new.method is distinct from old.method
+         or new.wave_reference is distinct from old.wave_reference
+         or new.paid_at is distinct from old.paid_at
+         or new.confirmed_at is distinct from old.confirmed_at then
+        raise exception 'Paid payment details are immutable';
+      end if;
+      return new;
+    end if;
+
+    if old.status <> 'pending' or new.status <> 'paid' then
       raise exception 'Client can only mark a pending payment as paid';
     end if;
 
-    if new.status = 'paid' and old.status = 'pending' then
-      if new.amount is distinct from (select budget from public.job_requests where id = old.job_id) then
-        raise exception 'Payment amount must match the job budget';
-      end if;
-      if new.method <> 'wave' or new.wave_reference is null or btrim(new.wave_reference) = '' then
-        raise exception 'Paid Wave payments require a Wave reference';
-      end if;
+    if new.amount is distinct from (select budget from public.job_requests where id = old.job_id) then
+      raise exception 'Payment amount must match the job budget';
+    end if;
+    if new.method <> 'wave' or new.wave_reference is null or btrim(new.wave_reference) = '' then
+      raise exception 'Paid Wave payments require a Wave reference';
     end if;
 
     if new.confirmed_at is distinct from old.confirmed_at then
