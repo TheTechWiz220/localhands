@@ -330,3 +330,6 @@ using (
     where p.id = auth.uid() and p.role = 'admin'
   )
 );
+
+-- Defense in depth: authenticated-only policies must not retain legacy public role grants.
+drop policy if exists "Clients can create jobs" on public.job_requests;
