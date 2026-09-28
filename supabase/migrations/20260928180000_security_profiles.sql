@@ -77,3 +77,7 @@ using (auth.uid() = id)
 with check (auth.uid() = id);
 
 -- ---------------------------------------------------------------------------
+
+-- Defense in depth: authenticated-only policies must not retain legacy public role grants.
+drop policy if exists "Users can insert own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
