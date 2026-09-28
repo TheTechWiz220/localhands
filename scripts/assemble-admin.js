@@ -167,6 +167,32 @@ if (!content.includes("Compare with national ID") && content.includes("avatarPre
   }
 }
 
+// --- ClientsPanel (phone, jobs, notes, flag/suspend) ---
+if (!content.includes('ClientsPanel')) {
+  if (content.includes('import SuspendedPanel from "@/components/admin/SuspendedPanel";')) {
+    content = content.replace(
+      'import SuspendedPanel from "@/components/admin/SuspendedPanel";',
+      'import SuspendedPanel from "@/components/admin/SuspendedPanel";\nimport ClientsPanel from "@/components/admin/ClientsPanel";'
+    );
+  } else {
+    content = content.replace(
+      'import Link from "next/link";',
+      'import Link from "next/link";\nimport SuspendedPanel from "@/components/admin/SuspendedPanel";\nimport ClientsPanel from "@/components/admin/ClientsPanel";'
+    );
+  }
+}
+
+if (!content.includes('<ClientsPanel') && content.includes('tab === "clients"')) {
+  const start = content.indexOf('{tab === "clients" && (');
+  const jobsTab = content.indexOf('{tab === "jobs" && (', start);
+  if (start !== -1 && jobsTab !== -1) {
+    content =
+      content.slice(0, start) +
+      '{tab === "clients" && <ClientsPanel />}\n\n      ' +
+      content.slice(jobsTab);
+  }
+}
+
 fs.writeFileSync(outPath, content);
 console.log(
   "assembled",
@@ -180,5 +206,7 @@ console.log(
   "overview card",
   content.includes('setTab("suspended")'),
   "avatarPreview",
-  content.includes("avatarPreview")
+  content.includes("avatarPreview"),
+  "ClientsPanel",
+  content.includes("ClientsPanel")
 );
