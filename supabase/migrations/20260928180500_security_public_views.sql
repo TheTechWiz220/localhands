@@ -1,6 +1,4 @@
 -- LocalHands profile privacy projections
-begin;
-
 drop view if exists public.public_worker_profiles;
 create view public.public_worker_profiles as
 select p.id,p.full_name,p.location_area,p.bio,p.verification_status,
