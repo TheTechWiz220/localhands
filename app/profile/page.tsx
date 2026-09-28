@@ -897,7 +897,13 @@ export default function ProfilePage() {
                 {proofItems.length}/{MAX_FILES}
               </span>
             </div>
-            {proofUrls.length > 0 && <ProofGallery urls={proofUrls} />}
+            {proofUrls.length > 0 && (
+              <ProofGallery
+                urls={proofUrls}
+                onDelete={(url) => deleteProof(url)}
+                deletingUrl={deletingUrl}
+              />
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -928,21 +934,6 @@ export default function ProfilePage() {
             {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
             {deletingUrl && (
               <p className="text-xs text-gray-500">Removing photo...</p>
-            )}
-            {proofItems.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {proofItems.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="text-xs text-red-600 hover:underline"
-                    onClick={() => deleteProof(p.media_url)}
-                    disabled={deletingUrl === p.media_url}
-                  >
-                    Remove one
-                  </button>
-                ))}
-              </div>
             )}
           </div>
         )}
