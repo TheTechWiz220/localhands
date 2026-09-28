@@ -77,3 +77,8 @@ using (auth.uid() = id)
 with check (auth.uid() = id);
 
 -- ---------------------------------------------------------------------------
+
+-- Trigger-only SECURITY DEFINER functions must not be directly callable.
+revoke execute on function public.protect_profile_security_fields() from public;
+revoke execute on function public.protect_profile_security_fields() from anon;
+revoke execute on function public.protect_profile_security_fields() from authenticated;
