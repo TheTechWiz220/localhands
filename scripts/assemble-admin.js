@@ -122,7 +122,7 @@ if (!content.includes("Tap to enlarge") && content.includes("h-14 w-14 rounded-f
   content = content.replace(oldImg, newImg);
 }
 
-if (!content.includes("Compare with national ID") && content.includes("avatarPreview")) {
+if (!content.includes("Compare with national ID") && !content.includes("Tap outside to close") && content.includes("avatarPreview")) {
   const endMarker = ['    </div>', '  );', '}'].join('\n');
   const modal = [
     '',
@@ -132,7 +132,7 @@ if (!content.includes("Compare with national ID") && content.includes("avatarPre
     '          onClick={() => setAvatarPreview(null)}',
     '          role="dialog"',
     '          aria-modal="true"',
-    '          aria-label="Worker photo"',
+    '          aria-label="Photo preview"',
     '        >',
     '          <div',
     '            className="relative max-w-sm w-full"',
@@ -148,11 +148,11 @@ if (!content.includes("Compare with national ID") && content.includes("avatarPre
     '            {/* eslint-disable-next-line @next/next/no-img-element */}',
     '            <img',
     '              src={avatarPreview}',
-    '              alt="Worker photo"',
-    '              className="w-full rounded-2xl object-cover shadow-xl bg-white"',
+    '              alt="Preview"',
+    '              className="w-full rounded-2xl object-contain max-h-[80vh] shadow-xl bg-black"',
     '            />',
     '            <p className="text-center text-white/80 text-xs mt-3">',
-    '              Compare with national ID / passport photo',
+    '              Tap outside to close',
     '            </p>',
     '          </div>',
     '        </div>',
@@ -194,8 +194,6 @@ if (!content.includes('<ClientsPanel') && content.includes('tab === "clients"'))
 }
 
 // --- Pending worker contacts (phone + admin-only email) ---
-// zlib uses inline cards + (s: any) — match that exactly
-
 if (!content.includes("whatsapp_phone: string | null")) {
   content = content.replace(
     `type PendingWorker = {
@@ -329,6 +327,37 @@ if (!content.includes("No phone on file")) {
   );
 }
 
+// --- Proof of work: tap to enlarge (reuse avatarPreview lightbox) ---
+if (!content.includes("Tap to enlarge proof")) {
+  content = content.replace(
+    `                        {w.proof_urls.map((url, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={i}
+                            src={url}
+                            alt={\`Proof \${i + 1}\`}
+                            className="aspect-square object-cover rounded-lg border"
+                          />
+                        ))}`,
+    `                        {w.proof_urls.map((url, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setAvatarPreview(url)}
+                            className="rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            title="Tap to enlarge proof"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt={\`Proof \${i + 1}\`}
+                              className="aspect-square object-cover rounded-lg border w-full pointer-events-none"
+                            />
+                          </button>
+                        ))}`
+  );
+}
+
 fs.writeFileSync(outPath, content);
 console.log(
   "assembled",
@@ -348,5 +377,7 @@ console.log(
   "pendingPhone",
   content.includes("whatsapp_phone: p.whatsapp_phone"),
   "pendingUI",
-  content.includes("No phone on file")
+  content.includes("No phone on file"),
+  "proofEnlarge",
+  content.includes("Tap to enlarge proof")
 );
