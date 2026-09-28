@@ -176,10 +176,15 @@ begin
          or auth.uid() <> old.client_id then
         raise exception 'Only the client can cancel an active job';
       end if;
-    elsif new.status = 'completed' then
+    elsif new.status = 'in_progress' then
       if old.status <> 'accepted'
          or (auth.uid() <> old.client_id and auth.uid() <> old.worker_id) then
-        raise exception 'Only a job participant can complete an accepted job';
+        raise exception 'Only a job participant can start an accepted job';
+      end if;
+    elsif new.status = 'completed' then
+      if old.status not in ('accepted', 'in_progress')
+         or (auth.uid() <> old.client_id and auth.uid() <> old.worker_id) then
+        raise exception 'Only a job participant can complete an active job';
       end if;
     else
       raise exception 'Invalid job status transition';
