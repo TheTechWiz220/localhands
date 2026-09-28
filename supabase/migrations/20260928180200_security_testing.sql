@@ -370,6 +370,16 @@ begin
     return new;
   end if;
 
+  if tg_op = 'INSERT' then
+    if new.profile_id <> auth.uid() then
+      raise exception 'Tester profile owner must be the authenticated user';
+    end if;
+    if new.status <> 'suspended' then
+      raise exception 'New tester profiles must start suspended';
+    end if;
+    return new;
+  end if;
+
   if new.profile_id is distinct from old.profile_id then
     raise exception 'Tester profile owner cannot be changed';
   end if;
@@ -384,9 +394,10 @@ $$;
 
 drop trigger if exists trg_protect_testing_tester_security on public.testing_testers;
 create trigger trg_protect_testing_tester_security
-before update on public.testing_testers
+before insert or update on public.testing_testers
 for each row execute function public.protect_testing_tester_security();
 
+drop policy if exists "testers manage own tester profile" on public.testing_testers;
 drop policy if exists "testers manage own tester profile" on public.testing_testers;
 create policy "testers manage own tester profile"
 on public.testing_testers
@@ -398,10 +409,10 @@ using (
   )
 )
 with check (
-  profile_id = auth.uid()
-  or exists (
+  exists (
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
   )
+  or (profile_id = auth.uid() and status = 'suspended')
 );
 
 drop policy if exists "testers view own rewards" on public.testing_rewards;
