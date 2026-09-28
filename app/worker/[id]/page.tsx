@@ -17,6 +17,7 @@ export default async function WorkerPage({
 
   let worker: any = null;
   let proofUrls: string[] = [];
+  let certItems: { title: string; media_url: string }[] = [];
   let reviews: {
     rating: number;
     comment: string | null;
@@ -46,6 +47,16 @@ export default async function WorkerPage({
       .select("media_url")
       .eq("worker_id", id)
       .order("created_at", { ascending: false });
+
+    const { data: certs } = await supabase
+      .from("worker_certificates")
+      .select("title, media_url")
+      .eq("worker_id", id)
+      .order("created_at", { ascending: true });
+    certItems = (certs || []).map((c: any) => ({
+      title: (c.title as string) || "Certificate",
+      media_url: c.media_url as string,
+    }));
 
     const { data: ratingRows } = await supabase
       .from("ratings")
@@ -238,6 +249,21 @@ export default async function WorkerPage({
           <h2 className="font-semibold mb-2">Proof of work</h2>
           <p className="text-xs text-gray-500 mb-2">Tap a photo to enlarge</p>
           <ProofGallery urls={proofUrls} />
+        </div>
+      )}
+
+      {certItems.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-2">Certificates / training</h2>
+          <p className="text-xs text-gray-500 mb-2">Tap a photo to enlarge</p>
+          <div className="space-y-2">
+            {certItems.map((c, i) => (
+              <div key={i} className="rounded-lg border bg-white p-2">
+                <p className="text-sm font-medium mb-2">{c.title}</p>
+                <ProofGallery urls={[c.media_url]} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
