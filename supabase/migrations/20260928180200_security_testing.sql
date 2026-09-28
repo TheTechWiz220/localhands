@@ -398,7 +398,6 @@ before insert or update on public.testing_testers
 for each row execute function public.protect_testing_tester_security();
 
 drop policy if exists "testers manage own tester profile" on public.testing_testers;
-drop policy if exists "testers manage own tester profile" on public.testing_testers;
 create policy "testers manage own tester profile"
 on public.testing_testers
 for all to authenticated
