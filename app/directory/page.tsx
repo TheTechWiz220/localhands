@@ -40,7 +40,6 @@ export default function DirectoryPage() {
         .select(
           "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at, id_verified"
         )
-        .eq("role", "worker")
         .in("verification_status", ["verified", "suspended"])
         .order("created_at", { ascending: false });
 
