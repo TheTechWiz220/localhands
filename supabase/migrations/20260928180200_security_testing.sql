@@ -427,3 +427,20 @@ with check (
 );
 
 -- ---------------------------------------------------------------------------
+
+-- Trigger-only SECURITY DEFINER functions must not be directly callable.
+revoke execute on function public.protect_legacy_testing_ownership() from public;
+revoke execute on function public.protect_legacy_testing_ownership() from anon;
+revoke execute on function public.protect_legacy_testing_ownership() from authenticated;
+revoke execute on function public.protect_test_assignment_security() from public;
+revoke execute on function public.protect_test_assignment_security() from anon;
+revoke execute on function public.protect_test_assignment_security() from authenticated;
+revoke execute on function public.protect_testing_assignment_security() from public;
+revoke execute on function public.protect_testing_assignment_security() from anon;
+revoke execute on function public.protect_testing_assignment_security() from authenticated;
+revoke execute on function public.protect_test_report_security() from public;
+revoke execute on function public.protect_test_report_security() from anon;
+revoke execute on function public.protect_test_report_security() from authenticated;
+revoke execute on function public.protect_testing_tester_security() from public;
+revoke execute on function public.protect_testing_tester_security() from anon;
+revoke execute on function public.protect_testing_tester_security() from authenticated;
