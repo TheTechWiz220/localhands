@@ -126,24 +126,6 @@ create trigger trg_protect_test_assignment_security
 before update on public.test_assignments
 for each row execute function public.protect_test_assignment_security();
 
-drop policy if exists "test_assignments_update_own_or_admin" on public.test_assignments;
-create policy "test_assignments_update_own_or_admin"
-on public.test_assignments
-for update to authenticated
-using (
-  user_id = auth.uid()
-  or exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin'
-  )
-)
-with check (
-  user_id = auth.uid()
-  or exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin'
-  )
-);
 
 -- ---------------------------------------------------------------------------
 -- 5. Testing assignments/reports: enforce campaign ownership, claim state,
