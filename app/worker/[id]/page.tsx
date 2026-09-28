@@ -29,7 +29,7 @@ export default async function WorkerPage({
   let jobsDone = 0;
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("public_worker_profiles")
     .select(
       "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at, id_verified"
     )
