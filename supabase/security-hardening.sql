@@ -586,7 +586,124 @@ using (
 );
 
 -- ---------------------------------------------------------------------------
--- 6. Lock privileged SECURITY DEFINER functions to authenticated users only
+-- 6. Newer testing subsystem: restrict tester-owned records and fix
+-- tautological campaign/application correlation checks.
+-- ---------------------------------------------------------------------------
+
+drop policy if exists "accepted testers submit findings" on public.testing_findings;
+create policy "accepted testers submit findings"
+on public.testing_findings
+for insert to authenticated
+with check (
+  tester_id = auth.uid()
+  and exists (
+    select 1
+    from public.testing_applications a
+    where a.campaign_id = testing_findings.campaign_id
+      and a.tester_id = auth.uid()
+      and a.status = 'accepted'
+  )
+);
+
+drop policy if exists "campaign tasks visible to participants" on public.testing_tasks;
+create policy "campaign tasks visible to participants"
+on public.testing_tasks
+for select to authenticated
+using (
+  exists (
+    select 1 from public.testing_campaigns c
+    where c.id = testing_tasks.campaign_id
+      and c.status = 'published'
+  )
+  or exists (
+    select 1
+    from public.testing_applications a
+    where a.campaign_id = testing_tasks.campaign_id
+      and a.tester_id = auth.uid()
+      and a.status = 'accepted'
+  )
+  or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin'
+  )
+);
+
+drop policy if exists "testers apply" on public.testing_applications;
+create policy "testers apply"
+on public.testing_applications
+for insert to authenticated
+with check (
+  tester_id = auth.uid()
+  and exists (
+    select 1 from public.testing_testers t
+    where t.profile_id = auth.uid()
+  )
+);
+
+drop policy if exists "users view own applications" on public.testing_applications;
+create policy "users view own applications"
+on public.testing_applications
+for select to authenticated
+using (
+  tester_id = auth.uid()
+  or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin'
+  )
+);
+
+drop policy if exists "admins review applications" on public.testing_applications;
+create policy "admins review applications"
+on public.testing_applications
+for update to authenticated
+using (
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+)
+with check (
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+drop policy if exists "testers manage own tester profile" on public.testing_testers;
+create policy "testers manage own tester profile"
+on public.testing_testers
+for all to authenticated
+using (
+  profile_id = auth.uid()
+  or exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+  )
+)
+with check (
+  profile_id = auth.uid()
+  or exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+  )
+);
+
+drop policy if exists "testers view own rewards" on public.testing_rewards;
+create policy "testers view own rewards"
+on public.testing_rewards
+for select to authenticated
+using (
+  tester_id = auth.uid()
+  or exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+  )
+);
+
+drop policy if exists "admins manage rewards" on public.testing_rewards;
+create policy "admins manage rewards"
+on public.testing_rewards
+for all to authenticated
+using (
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+)
+with check (
+  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+-- ---------------------------------------------------------------------------
+-- 7. Lock privileged SECURITY DEFINER functions to authenticated users only
 -- and make the search path explicit.
 -- ---------------------------------------------------------------------------
 
