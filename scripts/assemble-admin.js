@@ -194,6 +194,35 @@ if (!content.includes('<ClientsPanel') && content.includes('tab === "clients"'))
 }
 
 // --- Pending worker contacts (phone + admin-only email) ---
+// zlib uses inline cards + (s: any) — match that exactly
+
+if (!content.includes("whatsapp_phone: string | null")) {
+  content = content.replace(
+    `type PendingWorker = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  bio: string | null;
+  verification_status: string;
+  avatar_url: string | null;
+  skills: string[];
+  proof_urls: string[];
+};`,
+    `type PendingWorker = {
+  id: string;
+  full_name: string | null;
+  location_area: string | null;
+  bio: string | null;
+  verification_status: string;
+  avatar_url: string | null;
+  whatsapp_phone: string | null;
+  email: string | null;
+  skills: string[];
+  proof_urls: string[];
+};`
+  );
+}
+
 content = content.replace(
   '.select("id, full_name, location_area, bio, verification_status, avatar_url")\n      .eq("role", "worker")\n      .eq("verification_status", "pending")',
   '.select("id, full_name, location_area, bio, verification_status, avatar_url, whatsapp_phone")\n      .eq("role", "worker")\n      .eq("verification_status", "pending")'
@@ -208,8 +237,8 @@ if (!content.includes("whatsapp_phone: p.whatsapp_phone")) {
         bio: p.bio,
         verification_status: p.verification_status,
         avatar_url: p.avatar_url || null,
-        skills: (skills || []).map((s: { skill: string }) => s.skill),
-        proof_urls: (media || []).map((m: { media_url: string }) => m.media_url),
+        skills: (skills || []).map((s: any) => s.skill),
+        proof_urls: (media || []).map((m: any) => m.media_url),
       });`,
     `enriched.push({
         id: p.id,
@@ -220,8 +249,8 @@ if (!content.includes("whatsapp_phone: p.whatsapp_phone")) {
         avatar_url: p.avatar_url || null,
         whatsapp_phone: p.whatsapp_phone || null,
         email: null,
-        skills: (skills || []).map((s: { skill: string }) => s.skill),
-        proof_urls: (media || []).map((m: { media_url: string }) => m.media_url),
+        skills: (skills || []).map((s: any) => s.skill),
+        proof_urls: (media || []).map((m: any) => m.media_url),
       });`
   );
 }
@@ -229,10 +258,10 @@ if (!content.includes("whatsapp_phone: p.whatsapp_phone")) {
 if (!content.includes("/* loadPending contacts */")) {
   content = content.replace(
     `setWorkers(enriched);
-    setLoadingList(false);
-  }, [supabase]);`,
+  }
+
+  async function loadVerifiedWorkers()`,
     `setWorkers(enriched);
-    setLoadingList(false);
 
     try {
       const ids = enriched.map((w) => w.id);
@@ -256,7 +285,47 @@ if (!content.includes("/* loadPending contacts */")) {
     } catch {
       /* optional */
     }
-  }, [supabase]); /* loadPending contacts */`
+  } /* loadPending contacts */
+
+  async function loadVerifiedWorkers()`
+  );
+}
+
+if (!content.includes("No phone on file")) {
+  content = content.replace(
+    `<p className="text-sm text-gray-500">
+                        {w.location_area || "Area not set"}
+                      </p>
+                      {w.bio && (
+                        <p className="text-sm text-gray-600 mt-1">{w.bio}</p>
+                      )}`,
+    `<p className="text-sm text-gray-500">
+                        {w.location_area || "Area not set"}
+                      </p>
+                      {w.whatsapp_phone ? (
+                        <p className="text-xs text-green-700 mt-0.5">
+                          <a
+                            href={\`https://wa.me/\${String(w.whatsapp_phone).replace(/\\D/g, "\")}\`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline"
+                          >
+                            {w.whatsapp_phone}
+                          </a>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-0.5">No phone on file</p>
+                      )}
+                      {w.email ? (
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          <a href={\`mailto:\${w.email}\`} className="underline break-all">
+                            {w.email}
+                          </a>
+                        </p>
+                      ) : null}
+                      {w.bio && (
+                        <p className="text-sm text-gray-600 mt-1">{w.bio}</p>
+                      )}`
   );
 }
 
@@ -277,5 +346,7 @@ console.log(
   "ClientsPanel",
   content.includes("ClientsPanel"),
   "pendingPhone",
-  content.includes("whatsapp_phone: p.whatsapp_phone")
+  content.includes("whatsapp_phone: p.whatsapp_phone"),
+  "pendingUI",
+  content.includes("No phone on file")
 );
