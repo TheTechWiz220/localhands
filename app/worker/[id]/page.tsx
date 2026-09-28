@@ -244,14 +244,6 @@ export default async function WorkerPage({
         <p className="text-sm text-gray-600 leading-relaxed">{worker.bio}</p>
       </div>
 
-      {proofUrls.length > 0 && (
-        <div>
-          <h2 className="font-semibold mb-2">Proof of work</h2>
-          <p className="text-xs text-gray-500 mb-2">Tap a photo to enlarge</p>
-          <ProofGallery urls={proofUrls} />
-        </div>
-      )}
-
       {certItems.length > 0 && (
         <div>
           <h2 className="font-semibold mb-2">Certificates / training</h2>
@@ -264,6 +256,14 @@ export default async function WorkerPage({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {proofUrls.length > 0 && (
+        <div>
+          <h2 className="font-semibold mb-2">Proof of work</h2>
+          <p className="text-xs text-gray-500 mb-2">Tap a photo to enlarge</p>
+          <ProofGallery urls={proofUrls} />
         </div>
       )}
 
