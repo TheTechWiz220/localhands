@@ -7,7 +7,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
   if exists (
     select 1 from public.profiles p
@@ -32,7 +32,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trg_protect_legacy_test_assignment on public.test_assignments;
 create trigger trg_protect_legacy_test_assignment
@@ -357,7 +357,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   caller_is_admin boolean;
 begin
@@ -380,7 +380,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trg_protect_testing_tester_security on public.testing_testers;
 create trigger trg_protect_testing_tester_security
