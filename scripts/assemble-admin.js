@@ -37,99 +37,65 @@ if (!content.includes("SuspendedPanel")) {
 // Suspended count on tab badge (like Workers / Clients)
 if (!content.includes('id === "suspended"')) {
   content = content.replace(
-    `{id === "clients" && clientsList.length > 0 && (
-              <span className="ml-1">({clientsList.length})</span>
-            )}
-          </button>`,
-    `{id === "clients" && clientsList.length > 0 && (
-              <span className="ml-1">({clientsList.length})</span>
-            )}
-            {id === "suspended" &&
-              stats &&
-              stats.suspendedWorkers > 0 && (
-                <span className="ml-1">({stats.suspendedWorkers})</span>
-              )}
-          </button>`
+    `{id === "clients" && clientsList.length > 0 && (\n              <span className="ml-1">({clientsList.length})</span>\n            )}\n          </button>`,
+    `{id === "clients" && clientsList.length > 0 && (\n              <span className="ml-1">({clientsList.length})</span>\n            )}\n            {id === "suspended" &&\n              stats &&\n              stats.suspendedWorkers > 0 && (\n                <span className="ml-1">({stats.suspendedWorkers})</span>\n              )}\n          </button>`
   );
 }
 
 // Stats type
 if (!content.includes("suspendedWorkers: number")) {
   content = content.replace(
-    `type Stats = {
-  pendingWorkers: number;
-  verifiedWorkers: number;
-  clientsCount: number;`,
-    `type Stats = {
-  pendingWorkers: number;
-  verifiedWorkers: number;
-  suspendedWorkers: number;
-  clientsCount: number;`
+    `type Stats = {\n  pendingWorkers: number;\n  verifiedWorkers: number;\n  clientsCount: number;`,
+    `type Stats = {\n  pendingWorkers: number;\n  verifiedWorkers: number;\n  suspendedWorkers: number;\n  clientsCount: number;`
   );
 }
 
 // Count query
 if (!content.includes("count: suspendedWorkers")) {
   content = content.replace(
-    `const { count: verifiedWorkers } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "worker")
-      .eq("verification_status", "verified");
-
-    const { count: clientsCount } = await supabase`,
-    `const { count: verifiedWorkers } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "worker")
-      .eq("verification_status", "verified");
-
-    const { count: suspendedWorkers } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "worker")
-      .eq("verification_status", "suspended");
-
-    const { count: clientsCount } = await supabase`
+    `const { count: verifiedWorkers } = await supabase\n      .from("profiles")\n      .select("id", { count: "exact", head: true })\n      .eq("role", "worker")\n      .eq("verification_status", "verified");\n\n    const { count: clientsCount } = await supabase`,
+    `const { count: verifiedWorkers } = await supabase\n      .from("profiles")\n      .select("id", { count: "exact", head: true })\n      .eq("role", "worker")\n      .eq("verification_status", "verified");\n\n    const { count: suspendedWorkers } = await supabase\n      .from("profiles")\n      .select("id", { count: "exact", head: true })\n      .eq("role", "worker")\n      .eq("verification_status", "suspended");\n\n    const { count: clientsCount } = await supabase`
   );
 }
 
 // setStats payload
 if (!content.includes("suspendedWorkers: suspendedWorkers")) {
   content = content.replace(
-    `setStats({
-      pendingWorkers: pendingWorkers || 0,
-      verifiedWorkers: verifiedWorkers || 0,
-      clientsCount: clientsCount || 0,`,
-    `setStats({
-      pendingWorkers: pendingWorkers || 0,
-      verifiedWorkers: verifiedWorkers || 0,
-      suspendedWorkers: suspendedWorkers || 0,
-      clientsCount: clientsCount || 0,`
+    `setStats({\n      pendingWorkers: pendingWorkers || 0,\n      verifiedWorkers: verifiedWorkers || 0,\n      clientsCount: clientsCount || 0,`,
+    `setStats({\n      pendingWorkers: pendingWorkers || 0,\n      verifiedWorkers: verifiedWorkers || 0,\n      suspendedWorkers: suspendedWorkers || 0,\n      clientsCount: clientsCount || 0,`
   );
 }
 
 // Overview card for suspended
 if (!content.includes("tap to manage")) {
-  const clientsCardEnd = `              <p className="text-xs text-gray-500">tap to list</p>
-            </button>
-            <div className="rounded-xl border bg-white p-4 col-span-2">`;
-  const withSuspended = `              <p className="text-xs text-gray-500">tap to list</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("suspended")}
-              className="rounded-xl border bg-white p-4 text-left hover:border-amber-300 transition"
-            >
-              <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-                <Ban className="h-3.5 w-3.5" /> Suspended
-              </div>
-              <p className="text-2xl font-bold">{stats.suspendedWorkers}</p>
-              <p className="text-xs text-amber-700">tap to manage</p>
-            </button>
-            <div className="rounded-xl border bg-white p-4 col-span-2">`;
+  const clientsCardEnd = `              <p className="text-xs text-gray-500">tap to list</p>\n            </button>\n            <div className="rounded-xl border bg-white p-4 col-span-2">`;
+  const withSuspended = `              <p className="text-xs text-gray-500">tap to list</p>\n            </button>\n            <button\n              type="button"\n              onClick={() => setTab("suspended")}\n              className="rounded-xl border bg-white p-4 text-left hover:border-amber-300 transition"\n            >\n              <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">\n                <Ban className="h-3.5 w-3.5" /> Suspended\n              </div>\n              <p className="text-2xl font-bold">{stats.suspendedWorkers}</p>\n              <p className="text-xs text-amber-700">tap to manage</p>\n            </button>\n            <div className="rounded-xl border bg-white p-4 col-span-2">`;
   if (content.includes(clientsCardEnd)) {
     content = content.replace(clientsCardEnd, withSuspended);
+  }
+}
+
+// --- Avatar lightbox on pending cards (for ID verification) ---
+if (!content.includes("avatarPreview")) {
+  content = content.replace(
+    '  const [errorMsg, setErrorMsg] = useState("");',
+    `  const [errorMsg, setErrorMsg] = useState("");\n  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);`
+  );
+}
+
+if (!content.includes("Tap to enlarge") && content.includes("h-14 w-14 rounded-full object-cover border shrink-0 bg-gray-100")) {
+  content = content.replace(
+    `                    {w.avatar_url ? (\n                      // eslint-disable-next-line @next/next/no-img-element\n                      <img\n                        src={w.avatar_url}\n                        alt=""\n                        className="h-14 w-14 rounded-full object-cover border shrink-0 bg-gray-100"\n                      />\n                    ) : (\n                      <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">\n                        {(w.full_name || "?")[0].toUpperCase()}\n                      </div>\n                    )}`,
+    `                    {w.avatar_url ? (\n                      <button\n                        type="button"\n                        onClick={() => setAvatarPreview(w.avatar_url)}\n                        className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"\n                        title="Tap to enlarge"\n                      >\n                        {/* eslint-disable-next-line @next/next/no-img-element */}\n                        <img\n                          src={w.avatar_url}\n                          alt=""\n                          className="h-14 w-14 rounded-full object-cover border bg-gray-100"\n                        />\n                      </button>\n                    ) : (\n                      <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">\n                        {(w.full_name || "?")[0].toUpperCase()}\n                      </div>\n                    )}`
+  );
+}
+
+if (!content.includes("Compare with national ID") && content.includes("avatarPreview")) {
+  const endMarker = `    </div>\n  );\n}`;
+  const modal = `\n      {avatarPreview && (\n        <div\n          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"\n          onClick={() => setAvatarPreview(null)}\n          role="dialog"\n          aria-modal="true"\n          aria-label="Worker photo"\n        >\n          <div\n            className="relative max-w-sm w-full"\n            onClick={(e) => e.stopPropagation()}\n          >\n            <button\n              type="button"\n              onClick={() => setAvatarPreview(null)}\n              className="absolute -top-10 right-0 text-white text-sm font-medium px-3 py-1 rounded-full bg-white/20"\n            >\n              Close\n            </button>\n            {/* eslint-disable-next-line @next/next/no-img-element */}\n            <img\n              src={avatarPreview}\n              alt="Worker photo"\n              className="w-full rounded-2xl object-cover shadow-xl bg-white"\n            />\n            <p className="text-center text-white/80 text-xs mt-3">\n              Compare with national ID / passport photo\n            </p>\n          </div>\n        </div>\n      )}\n    </div>\n  );\n}`;
+  const idx = content.lastIndexOf(endMarker);
+  if (idx !== -1) {
+    content = content.slice(0, idx) + modal + content.slice(idx + endMarker.length);
   }
 }
 
@@ -144,5 +110,7 @@ console.log(
   "stats field",
   content.includes("suspendedWorkers: number"),
   "overview card",
-  content.includes('setTab("suspended")')
+  content.includes('setTab("suspended")'),
+  "avatarPreview",
+  content.includes("avatarPreview")
 );
