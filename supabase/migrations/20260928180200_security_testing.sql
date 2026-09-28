@@ -218,6 +218,22 @@ with check (
       and a.tester_id = auth.uid()
       and a.status = 'accepted'
   )
+  and exists (
+    select 1
+    from public.testing_campaigns c
+    where c.id = testing_findings.campaign_id
+      and c.status = 'published'
+  )
+  and (
+    task_id is null
+    or exists (
+      select 1
+      from public.testing_tasks t
+      where t.id = testing_findings.task_id
+        and t.campaign_id = testing_findings.campaign_id
+        and t.active = true
+    )
+  )
   and status = 'pending'
   and reviewed_by is null
   and reviewed_at is null
@@ -257,6 +273,12 @@ with check (
   and exists (
     select 1 from public.testing_testers t
     where t.profile_id = auth.uid()
+      and t.status = 'active'
+  )
+  and exists (
+    select 1 from public.testing_campaigns c
+    where c.id = testing_applications.campaign_id
+      and c.status = 'published'
   )
 );
 
@@ -281,6 +303,41 @@ using (
 with check (
   exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
 );
+
+create or replace function public.protect_testing_tester_security()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  caller_is_admin boolean;
+begin
+  caller_is_admin := exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin'
+  );
+
+  if caller_is_admin then
+    return new;
+  end if;
+
+  if new.profile_id is distinct from old.profile_id then
+    raise exception 'Tester profile owner cannot be changed';
+  end if;
+
+  if new.status is distinct from old.status then
+    raise exception 'Tester status can only be changed by an admin';
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists trg_protect_testing_tester_security on public.testing_testers;
+create trigger trg_protect_testing_tester_security
+before update on public.testing_testers
+for each row execute function public.protect_testing_tester_security();
 
 drop policy if exists "testers manage own tester profile" on public.testing_testers;
 create policy "testers manage own tester profile"
