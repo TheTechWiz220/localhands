@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-export default function AuthPage() {
+function AuthPageInner() {
   const [mode, setMode] = useState<"signin" | "create">("create");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -252,5 +252,20 @@ export default function AuthPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-sm mx-auto px-4 py-20 text-center">
+          <Loader2 className="h-7 w-7 animate-spin mx-auto text-green-600 mb-3" />
+          <p className="text-sm text-gray-500">Loading...</p>
+        </div>
+      }
+    >
+      <AuthPageInner />
+    </Suspense>
   );
 }
