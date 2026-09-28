@@ -138,6 +138,20 @@ with checks(check_name, passed, detail) as (
         and with_check like '%testing_findings.task_id%'
     ),
     'A finding cannot attach a task from another campaign'
+  union all
+  select
+    'legacy proof-media write policies removed',
+    not exists (
+      select 1 from pg_policies
+      where schemaname='storage' and tablename='objects'
+        and policyname in (
+          'Authenticated upload proof-media',
+          'Authenticated users can upload proof-media',
+          'Authenticated update proof-media',
+          'Authenticated users can update own proof-media'
+        )
+    ),
+    'Unscoped proof-media write policies must not remain'
 )
 select check_name,
        case when passed then 'PASS' else 'FAIL' end as result,
