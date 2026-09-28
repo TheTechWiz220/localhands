@@ -193,6 +193,73 @@ if (!content.includes('<ClientsPanel') && content.includes('tab === "clients"'))
   }
 }
 
+// --- Pending worker contacts (phone + admin-only email) ---
+content = content.replace(
+  '.select("id, full_name, location_area, bio, verification_status, avatar_url")\n      .eq("role", "worker")\n      .eq("verification_status", "pending")',
+  '.select("id, full_name, location_area, bio, verification_status, avatar_url, whatsapp_phone")\n      .eq("role", "worker")\n      .eq("verification_status", "pending")'
+);
+
+if (!content.includes("whatsapp_phone: p.whatsapp_phone")) {
+  content = content.replace(
+    `enriched.push({
+        id: p.id,
+        full_name: p.full_name,
+        location_area: p.location_area,
+        bio: p.bio,
+        verification_status: p.verification_status,
+        avatar_url: p.avatar_url || null,
+        skills: (skills || []).map((s: { skill: string }) => s.skill),
+        proof_urls: (media || []).map((m: { media_url: string }) => m.media_url),
+      });`,
+    `enriched.push({
+        id: p.id,
+        full_name: p.full_name,
+        location_area: p.location_area,
+        bio: p.bio,
+        verification_status: p.verification_status,
+        avatar_url: p.avatar_url || null,
+        whatsapp_phone: p.whatsapp_phone || null,
+        email: null,
+        skills: (skills || []).map((s: { skill: string }) => s.skill),
+        proof_urls: (media || []).map((m: { media_url: string }) => m.media_url),
+      });`
+  );
+}
+
+if (!content.includes("/* loadPending contacts */")) {
+  content = content.replace(
+    `setWorkers(enriched);
+    setLoadingList(false);
+  }, [supabase]);`,
+    `setWorkers(enriched);
+    setLoadingList(false);
+
+    try {
+      const ids = enriched.map((w) => w.id);
+      if (ids.length > 0) {
+        const res = await fetch("/api/admin/client-emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const map = (json?.emails || {}) as Record<string, string>;
+          setWorkers((prev) =>
+            prev.map((w) => ({
+              ...w,
+              email: map[w.id] || w.email || null,
+            }))
+          );
+        }
+      }
+    } catch {
+      /* optional */
+    }
+  }, [supabase]); /* loadPending contacts */`
+  );
+}
+
 fs.writeFileSync(outPath, content);
 console.log(
   "assembled",
@@ -208,5 +275,7 @@ console.log(
   "avatarPreview",
   content.includes("avatarPreview"),
   "ClientsPanel",
-  content.includes("ClientsPanel")
+  content.includes("ClientsPanel"),
+  "pendingPhone",
+  content.includes("whatsapp_phone: p.whatsapp_phone")
 );
