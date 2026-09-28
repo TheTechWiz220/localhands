@@ -69,6 +69,14 @@ create trigger trg_protect_profile_security_fields
 before update on public.profiles
 for each row execute function public.protect_profile_security_fields();
 
+drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
+drop policy if exists "Users can view own profile" on public.profiles;
+create policy "Users can view own profile" on public.profiles
+for select to authenticated using (auth.uid() = id);
+drop policy if exists "Admins can view all profiles" on public.profiles;
+create policy "Admins can view all profiles" on public.profiles
+for select to authenticated using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
 on public.profiles
