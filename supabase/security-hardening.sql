@@ -559,6 +559,10 @@ with check (
       and a.tester_id = auth.uid()
       and a.status = 'accepted'
   )
+  and status = 'pending'
+  and reviewed_by is null
+  and reviewed_at is null
+  and coalesce(reward_amount, 0) = 0
 );
 
 drop policy if exists "campaign tasks visible to participants" on public.testing_tasks;
