@@ -12,7 +12,7 @@ export default function TermsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Terms of Service</h1>
         <p className="text-xs text-gray-500 mt-1">
-          Last updated: 31 August 2026 · LocalHands is a product of The Techwiz.
+          Last updated: 28 September 2026 · LocalHands is a product of The Techwiz.
           Operated by The Techwiz Lab.
         </p>
       </div>
@@ -20,8 +20,8 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="font-semibold text-gray-900">1. Agreement</h2>
         <p>
-          By creating an account or using LocalHands (&quot;the Platform&quot;,
-          &quot;we&quot;, &quot;us&quot;), you agree to these Terms of Service
+          By creating an account or using LocalHands ("the Platform",
+          "we", "us"), you agree to these Terms of Service
           and our{" "}
           <Link href="/privacy" className="text-green-700 underline">
             Privacy Policy
@@ -61,8 +61,14 @@ export default function TermsPage() {
         <h2 className="font-semibold text-gray-900">3. Eligibility</h2>
         <ul className="list-disc pl-5 space-y-1">
           <li>You must be at least 18 years old.</li>
-          <li>You must provide accurate information.</li>
-          <li>One person should use one account, unless we agree otherwise.</li>
+          <li>
+            You must provide accurate information (including name, contact
+            details, and profile photo where required).
+          </li>
+          <li>
+            One person should use one account. Duplicate or fake accounts may be
+            suspended or closed.
+          </li>
           <li>
             You are responsible for keeping access to your email and account
             secure.
@@ -89,15 +95,20 @@ export default function TermsPage() {
         <h2 className="font-semibold text-gray-900">5. Worker verification</h2>
         <ul className="list-disc pl-5 space-y-1">
           <li>
-            Workers may need to provide skills, proof of work, age confirmation,
-            and (where required) ID checks arranged by LocalHands.
+            Workers must provide skills, a clear face photo, a working WhatsApp
+            or phone number, age confirmation (18+), and (where required) an
+            in-person ID check arranged by LocalHands.
+          </li>
+          <li>
+            We may contact you by WhatsApp or email to schedule verification.
+            You agree to keep your contact details and photo up to date.
           </li>
           <li>
             Verified status is a platform signal, not a guarantee of skill,
             safety, or outcome of any job.
           </li>
           <li>
-            We may suspend a worker&apos;s verification. Suspended workers may
+            We may suspend a worker's verification. Suspended workers may
             still appear in search with a clear Suspended label and cannot
             receive new job requests until re-approved.
           </li>
@@ -139,10 +150,11 @@ export default function TermsPage() {
         <p>You agree not to:</p>
         <ul className="list-disc pl-5 space-y-1">
           <li>Post false, misleading, or fraudulent profiles or job ads</li>
+          <li>Create multiple accounts to evade suspension or mislead others</li>
           <li>Harass, threaten, or discriminate against other users</li>
           <li>Upload illegal, harmful, or deceptive content</li>
           <li>Manipulate ratings or leave fake reviews</li>
-          <li>Scrape, attack, or abuse the Platform or other users&apos; data</li>
+          <li>Scrape, attack, or abuse the Platform or other users' data</li>
           <li>
             Use LocalHands for anything illegal under the laws of The Gambia
           </li>
@@ -165,7 +177,7 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="font-semibold text-gray-900">9. Disclaimers</h2>
         <p>
-          The Platform is provided &quot;as is&quot;. We work to keep it
+          The Platform is provided "as is". We work to keep it
           reliable and fair, but we do not guarantee uninterrupted access,
           that every worker or client will behave well, or that every job will
           meet your expectations.
@@ -193,7 +205,7 @@ export default function TermsPage() {
         <h2 className="font-semibold text-gray-900">11. Changes</h2>
         <p>
           We may update these Terms as the product grows (for example when
-          in-app payments or escrow launch). The &quot;Last updated&quot; date
+          in-app payments or escrow launch). The "Last updated" date
           will change. Continued use after changes means you accept the updated
           Terms. Material changes may also be noted in the app.
         </p>
