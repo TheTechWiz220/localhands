@@ -79,20 +79,88 @@ if (!content.includes("tap to manage")) {
 if (!content.includes("avatarPreview")) {
   content = content.replace(
     '  const [errorMsg, setErrorMsg] = useState("");',
-    `  const [errorMsg, setErrorMsg] = useState("");\n  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);`
+    '  const [errorMsg, setErrorMsg] = useState("");\n  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);'
   );
 }
 
 if (!content.includes("Tap to enlarge") && content.includes("h-14 w-14 rounded-full object-cover border shrink-0 bg-gray-100")) {
-  content = content.replace(
-    `                    {w.avatar_url ? (\n                      // eslint-disable-next-line @next/next/no-img-element\n                      <img\n                        src={w.avatar_url}\n                        alt=""\n                        className="h-14 w-14 rounded-full object-cover border shrink-0 bg-gray-100"\n                      />\n                    ) : (\n                      <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">\n                        {(w.full_name || "?")[0].toUpperCase()}\n                      </div>\n                    )}`,
-    `                    {w.avatar_url ? (\n                      <button\n                        type="button"\n                        onClick={() => setAvatarPreview(w.avatar_url)}\n                        className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"\n                        title="Tap to enlarge"\n                      >\n                        {/* eslint-disable-next-line @next/next/no-img-element */}\n                        <img\n                          src={w.avatar_url}\n                          alt=""\n                          className="h-14 w-14 rounded-full object-cover border bg-gray-100"\n                        />\n                      </button>\n                    ) : (\n                      <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">\n                        {(w.full_name || "?")[0].toUpperCase()}\n                      </div>\n                    )}`
-  );
+  const oldImg = [
+    '                    {w.avatar_url ? (',
+    '                      // eslint-disable-next-line @next/next/no-img-element',
+    '                      <img',
+    '                        src={w.avatar_url}',
+    '                        alt=""',
+    '                        className="h-14 w-14 rounded-full object-cover border shrink-0 bg-gray-100"',
+    '                      />',
+    '                    ) : (',
+    '                      <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">',
+    '                        {(w.full_name || "?")[0].toUpperCase()}',
+    '                      </div>',
+    '                    )}',
+  ].join('\n');
+  const newImg = [
+    '                    {w.avatar_url ? (',
+    '                      <button',
+    '                        type="button"',
+    '                        onClick={() => setAvatarPreview(w.avatar_url)}',
+    '                        className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"',
+    '                        title="Tap to enlarge"',
+    '                      >',
+    '                        {/* eslint-disable-next-line @next/next/no-img-element */}',
+    '                        <img',
+    '                          src={w.avatar_url}',
+    '                          alt=""',
+    '                          className="h-14 w-14 rounded-full object-cover border bg-gray-100"',
+    '                        />',
+    '                      </button>',
+    '                    ) : (',
+    '                      <div className="h-14 w-14 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-lg font-semibold shrink-0">',
+    '                        {(w.full_name || "?")[0].toUpperCase()}',
+    '                      </div>',
+    '                    )}',
+  ].join('\n');
+  content = content.replace(oldImg, newImg);
 }
 
 if (!content.includes("Compare with national ID") && content.includes("avatarPreview")) {
-  const endMarker = `    </div>\n  );\n}`;
-  const modal = `\n      {avatarPreview && (\n        <div\n          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"\n          onClick={() => setAvatarPreview(null)}\n          role="dialog"\n          aria-modal="true"\n          aria-label="Worker photo"\n        >\n          <div\n            className="relative max-w-sm w-full"\n            onClick={(e) => e.stopPropagation()}\n          >\n            <button\n              type="button"\n              onClick={() => setAvatarPreview(null)}\n              className="absolute -top-10 right-0 text-white text-sm font-medium px-3 py-1 rounded-full bg-white/20"\n            >\n              Close\n            </button>\n            {/* eslint-disable-next-line @next/next/no-img-element */}\n            <img\n              src={avatarPreview}\n              alt="Worker photo"\n              className="w-full rounded-2xl object-cover shadow-xl bg-white"\n            />\n            <p className="text-center text-white/80 text-xs mt-3">\n              Compare with national ID / passport photo\n            </p>\n          </div>\n        </div>\n      )}\n    </div>\n  );\n}`;
+  const endMarker = ['    </div>', '  );', '}'].join('\n');
+  const modal = [
+    '',
+    '      {avatarPreview && (',
+    '        <div',
+    '          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"',
+    '          onClick={() => setAvatarPreview(null)}',
+    '          role="dialog"',
+    '          aria-modal="true"',
+    '          aria-label="Worker photo"',
+    '        >',
+    '          <div',
+    '            className="relative max-w-sm w-full"',
+    '            onClick={(e) => e.stopPropagation()}',
+    '          >',
+    '            <button',
+    '              type="button"',
+    '              onClick={() => setAvatarPreview(null)}',
+    '              className="absolute -top-10 right-0 text-white text-sm font-medium px-3 py-1 rounded-full bg-white/20"',
+    '            >',
+    '              Close',
+    '            </button>',
+    '            {/* eslint-disable-next-line @next/next/no-img-element */}',
+    '            <img',
+    '              src={avatarPreview}',
+    '              alt="Worker photo"',
+    '              className="w-full rounded-2xl object-cover shadow-xl bg-white"',
+    '            />',
+    '            <p className="text-center text-white/80 text-xs mt-3">',
+    '              Compare with national ID / passport photo',
+    '            </p>',
+    '          </div>',
+    '        </div>',
+    '      )}',
+    '    </div>',
+    '  );',
+    '}',
+  ].join('\n');
   const idx = content.lastIndexOf(endMarker);
   if (idx !== -1) {
     content = content.slice(0, idx) + modal + content.slice(idx + endMarker.length);
