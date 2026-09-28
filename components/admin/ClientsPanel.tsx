@@ -93,7 +93,9 @@ export default function ClientsPanel() {
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [jobsByClient, setJobsByClient] = useState<Record<string, ClientJob[]>>({});
+  const [jobsByClient, setJobsByClient] = useState<Record<string, ClientJob[]>>(
+    {}
+  );
   const [loadingJobs, setLoadingJobs] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
   const [notesSupported, setNotesSupported] = useState(true);
@@ -184,7 +186,10 @@ export default function ClientsPanel() {
       if (rCount > 0) {
         avg =
           Math.round(
-            (ratingRows!.reduce((s: number, r: any) => s + (r.rating || 0), 0) /
+            (ratingRows!.reduce(
+              (s: number, r: any) => s + (r.rating || 0),
+              0
+            ) /
               rCount) *
               10
           ) / 10;
@@ -449,15 +454,21 @@ export default function ClientsPanel() {
                 {c.avatar_url ? (
                   <button
                     type="button"
-                    onClick={() => setAvatarPreview(c.avatar_url)}
-                    className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const url = c.avatar_url;
+                      if (url) setAvatarPreview(url);
+                    }}
+                    className="relative shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 active:opacity-80"
                     title="Tap to enlarge"
+                    aria-label="View client photo"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={c.avatar_url}
                       alt=""
-                      className="h-11 w-11 rounded-full object-cover border"
+                      className="h-11 w-11 rounded-full object-cover border pointer-events-none"
                     />
                   </button>
                 ) : (
@@ -642,7 +653,7 @@ export default function ClientsPanel() {
 
       {avatarPreview && (
         <div
-          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[200] bg-black/70 flex items-center justify-center p-4"
           onClick={() => setAvatarPreview(null)}
           role="dialog"
           aria-modal="true"
