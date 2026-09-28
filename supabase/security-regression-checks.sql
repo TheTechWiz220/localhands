@@ -167,6 +167,15 @@ with checks(check_name, passed, detail) as (
       and roles::text like '%authenticated%'
       and with_check like '%auth.uid() = worker_id%'),
     'Worker skill ownership cannot be reassigned'
+  union all
+  select
+    'ratings restricted to completed job participants',
+    exists (select 1 from pg_trigger where tgname='trg_protect_rating_security')
+    and exists (select 1 from pg_policies where schemaname='public' and tablename='ratings'
+      and policyname='Users can insert own ratings'
+      and with_check like '%j.status = ''completed''%'
+      and with_check like '%ratings.job_id%'),
+    'Ratings require a completed job between author and recipient'
 )
 select check_name,
        case when passed then 'PASS' else 'FAIL' end as result,
