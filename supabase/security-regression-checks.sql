@@ -54,6 +54,23 @@ with checks(check_name, passed, detail) as (
     'Task visibility must match application campaign'
   union all
   select
+    'testing assignment ownership trigger exists',
+    exists (
+      select 1 from pg_trigger
+      where tgname='trg_protect_testing_assignment_security'
+    ),
+    'Tester assignment creation/update must be database-guarded'
+  union all
+  select
+    'testing report ownership trigger exists',
+    exists (
+      select 1 from pg_trigger
+      where tgname='trg_protect_test_report_security'
+    ),
+    'Tester report updates must remain bound to the assignment owner'
+  union all
+  union all
+  select
     'proof-media bucket size cap configured',
     exists (
       select 1 from storage.buckets
