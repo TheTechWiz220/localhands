@@ -92,7 +92,7 @@ export default function SuspendedPanel() {
 
   async function resetToClient(workerId: string, workerName: string | null) {
     const ok = window.confirm(
-      `Reset ${workerName || "this account"} to Client? This removes worker verification state so the account can use Apply as Worker again. The login and profile data will remain.`
+      `Reset ${workerName || "this account"} to Client? This clears worker verification state and worker-facing profile details (bio, WhatsApp, photo and availability) so the account can use Apply as Worker again. The login, name and area remain.`
     );
     if (!ok) return;
 
@@ -110,6 +110,10 @@ export default function SuspendedPanel() {
         id_verified_at: null,
         verification_notes: null,
         admin_notes: null,
+        bio: null,
+        whatsapp_phone: null,
+        avatar_url: null,
+        availability: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", workerId);
@@ -120,7 +124,7 @@ export default function SuspendedPanel() {
       return;
     }
 
-    setMessage("Account reset to Client. It can now use Apply as Worker.");
+    setMessage("Account reset to Client. Worker profile details were cleared; it can now use Apply as Worker.");
     setList((prev) => prev.filter((w) => w.id !== workerId));
   }
 
