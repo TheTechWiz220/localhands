@@ -330,3 +330,14 @@ using (
     where p.id = auth.uid() and p.role = 'admin'
   )
 );
+
+-- Trigger-only SECURITY DEFINER functions must not be directly callable.
+revoke execute on function public.protect_job_security_fields() from public;
+revoke execute on function public.protect_job_security_fields() from anon;
+revoke execute on function public.protect_job_security_fields() from authenticated;
+revoke execute on function public.protect_payment_security_fields() from public;
+revoke execute on function public.protect_payment_security_fields() from anon;
+revoke execute on function public.protect_payment_security_fields() from authenticated;
+revoke execute on function public.protect_rating_security() from public;
+revoke execute on function public.protect_rating_security() from anon;
+revoke execute on function public.protect_rating_security() from authenticated;
