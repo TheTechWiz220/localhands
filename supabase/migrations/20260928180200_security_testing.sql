@@ -247,24 +247,6 @@ create trigger trg_protect_test_report_security
 before update on public.test_reports
 for each row execute function public.protect_test_report_security();
 
-drop policy if exists "test_reports_update_own" on public.test_reports;
-create policy "test_reports_update_own"
-on public.test_reports
-for update to authenticated
-using (
-  exists (
-    select 1 from public.test_assignments a
-    where a.id = assignment_id and a.user_id = auth.uid()
-  )
-  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-)
-with check (
-  exists (
-    select 1 from public.test_assignments a
-    where a.id = assignment_id and a.user_id = auth.uid()
-  )
-  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
 
 -- ---------------------------------------------------------------------------
 -- 6. Newer testing subsystem: restrict tester-owned records and fix
