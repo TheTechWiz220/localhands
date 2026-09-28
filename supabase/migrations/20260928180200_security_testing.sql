@@ -463,3 +463,14 @@ with check (
 );
 
 -- ---------------------------------------------------------------------------
+
+-- Defense in depth: authenticated-only policies must not retain legacy public role grants.
+drop policy if exists "admins review applications" on public.testing_applications;
+drop policy if exists "testers apply" on public.testing_applications;
+drop policy if exists "users view own applications" on public.testing_applications;
+drop policy if exists "admins create campaigns" on public.testing_campaigns;
+drop policy if exists "admins update campaigns" on public.testing_campaigns;
+drop policy if exists "admins review findings" on public.testing_findings;
+drop policy if exists "admins manage rewards" on public.testing_rewards;
+drop policy if exists "admins manage tasks" on public.testing_tasks;
+drop policy if exists "testers manage own tester profile" on public.testing_testers;
