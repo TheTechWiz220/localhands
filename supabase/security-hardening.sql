@@ -413,7 +413,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   caller_is_admin boolean;
   campaign_open boolean;
@@ -468,7 +468,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trg_protect_testing_assignment_security on public.test_assignments;
 create trigger trg_protect_testing_assignment_security
@@ -489,7 +489,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   caller_is_admin boolean;
 begin
@@ -516,7 +516,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trg_protect_test_report_security on public.test_reports;
 create trigger trg_protect_test_report_security
