@@ -607,6 +607,10 @@ with check (
       and a.tester_id = auth.uid()
       and a.status = 'accepted'
   )
+  and status = 'pending'
+  and reviewed_by is null
+  and reviewed_at is null
+  and coalesce(reward_amount, 0) = 0
 );
 
 drop policy if exists "campaign tasks visible to participants" on public.testing_tasks;
@@ -615,7 +619,8 @@ on public.testing_tasks
 for select to authenticated
 using (
   exists (
-    select 1 from public.testing_campaigns c
+    select 1
+    from public.testing_campaigns c
     where c.id = testing_tasks.campaign_id
       and c.status = 'published'
   )
@@ -651,8 +656,7 @@ for select to authenticated
 using (
   tester_id = auth.uid()
   or exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin'
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
   )
 );
 
