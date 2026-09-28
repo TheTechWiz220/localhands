@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProofOfWorkBlock } from "@/components/admin/ProofOfWorkBlock";
@@ -12,6 +12,8 @@ export type PendingWorker = {
   bio: string | null;
   verification_status: string;
   avatar_url: string | null;
+  whatsapp_phone: string | null;
+  email: string | null;
   skills: string[];
   proof_urls: string[];
 };
@@ -51,6 +53,28 @@ export function PendingWorkerCard({
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">{w.full_name || "Unnamed worker"}</h3>
           <p className="text-sm text-gray-500">{w.location_area || "Area not set"}</p>
+          {w.whatsapp_phone ? (
+            <p className="text-xs text-green-700 mt-0.5 flex items-center gap-1">
+              <Phone className="h-3 w-3 shrink-0" />
+              <a
+                href={`https://wa.me/${w.whatsapp_phone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                {w.whatsapp_phone}
+              </a>
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-0.5">No phone on file</p>
+          )}
+          {w.email ? (
+            <p className="text-xs text-gray-600 mt-0.5">
+              <a href={`mailto:${w.email}`} className="underline break-all">
+                {w.email}
+              </a>
+            </p>
+          ) : null}
           {w.bio && <p className="text-sm text-gray-600 mt-1">{w.bio}</p>}
         </div>
       </div>
