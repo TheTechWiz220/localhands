@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Privacy Policy</h1>
         <p className="text-xs text-gray-500 mt-1">
-          Last updated: 31 August 2026 · LocalHands is a product of The Techwiz.
+          Last updated: 28 September 2026 · LocalHands is a product of The Techwiz.
           Operated by The Techwiz Lab.
         </p>
       </div>
@@ -38,12 +38,23 @@ export default function PrivacyPage() {
           <li>
             <strong>Account data:</strong> email address, name, role (client /
             worker / admin), location area, bio, and profile photo you upload.
+            Workers must provide a clear face photo when applying.
+          </li>
+          <li>
+            <strong>Contact numbers:</strong> WhatsApp or phone number you provide
+            (required for workers so we can reach you for verification and job
+            coordination). Client phone is optional unless you choose to share it.
           </li>
           <li>
             <strong>Worker application data:</strong> skills, proof-of-work
             images, and confirmation that you are 18+. Admins may record that an
             ID was checked in person (we do not store ID document scans on the
             platform by default).
+          </li>
+          <li>
+            <strong>Admin safety records:</strong> internal notes, flags, and
+            account status (for example active or suspended) used only by
+            authorised admins to protect users and the platform.
           </li>
           <li>
             <strong>Job and payment records:</strong> job titles, budgets,
@@ -61,15 +72,24 @@ export default function PrivacyPage() {
         <h2 className="font-semibold text-gray-900">3. How we use information</h2>
         <ul className="list-disc pl-5 space-y-1">
           <li>Create and manage your account</li>
-          <li>Verify workers and show public profiles (name, skills, ratings)</li>
+          <li>
+            Verify workers (including contacting you by WhatsApp or email for
+            in-person ID checks) and show public profiles (name, skills, ratings,
+            photo where provided)
+          </li>
           <li>Match jobs, show fees, and support completion and ratings</li>
-          <li>Operate admin tools for safety and platform quality</li>
+          <li>
+            Operate admin tools for safety and platform quality (including
+            viewing contact details that are not shown publicly, notes, and
+            suspend / flag actions)
+          </li>
           <li>Respond to support requests and improve the product</li>
         </ul>
         <p>
-          We do not sell your personal data. Client contact details are kept
-          private until a job match is confirmed, where the product is designed
-          that way.
+          We do not sell your personal data. Email and phone numbers are{" "}
+          <strong>admin-only</strong> by default (not shown on public Find
+          profiles). Client contact details stay private until a job match is
+          confirmed, where the product is designed that way.
         </p>
       </section>
 
@@ -116,7 +136,7 @@ export default function PrivacyPage() {
       <section className="space-y-2">
         <h2 className="font-semibold text-gray-900">7. Your choices</h2>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Update profile details in the app</li>
+          <li>Update profile details (including photo and WhatsApp) in the app</li>
           <li>Request correction or deletion via email</li>
           <li>Stop using the service and request account closure</li>
         </ul>
