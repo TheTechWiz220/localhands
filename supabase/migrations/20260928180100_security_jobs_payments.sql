@@ -314,3 +314,19 @@ with check (
       )
   )
 );
+
+
+-- Job privacy: completed jobs remain visible only to their participants/admins.
+drop policy if exists "Completed jobs are publicly readable" on public.job_requests;
+drop policy if exists "Job requests viewable by participants" on public.job_requests;
+create policy "Job requests viewable by participants"
+on public.job_requests
+for select to authenticated
+using (
+  client_id = auth.uid()
+  or worker_id = auth.uid()
+  or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin'
+  )
+);
