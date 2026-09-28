@@ -70,6 +70,37 @@ with checks(check_name, passed, detail) as (
     'Tester report updates must remain bound to the assignment owner'
   union all
   select
+    'new testing applications policy is tester-owned',
+    exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='testing_applications'
+        and policyname='testers apply'
+        and with_check like '%tester_id = auth.uid()%'
+    ),
+    'Testers may only create their own applications'
+  union all
+  select
+    'new testing rewards are tester/admin scoped',
+    exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='testing_rewards'
+        and policyname='testers view own rewards'
+        and qual like '%tester_id = auth.uid()%'
+    ),
+    'Rewards must not be publicly readable'
+  union all
+  select
+    'tester finding review fields are protected',
+    exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='testing_findings'
+        and policyname='accepted testers submit findings'
+        and with_check like '%reviewed_by is null%'
+        and with_check like '%reward_amount%'
+    ),
+    'Tester-created findings must start unrewarded and unreviewed'
+  union all
+  select
     'proof-media bucket size cap configured',
     exists (
       select 1 from storage.buckets
