@@ -6,10 +6,46 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
+/** Common email domain typos → suggested correct domain */
+const DOMAIN_TYPOS: Record<string, string> = {
+  "gemail.com": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gnail.com": "gmail.com",
+  "gmal.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmail.cm": "gmail.com",
+  "gmail.con": "gmail.com",
+  "gmail.om": "gmail.com",
+  "hotmal.com": "hotmail.com",
+  "hotmial.com": "hotmail.com",
+  "hotmail.co": "hotmail.com",
+  "outlok.com": "outlook.com",
+  "outloo.com": "outlook.com",
+  "outlook.co": "outlook.com",
+  "yaho.com": "yahoo.com",
+  "yahooo.com": "yahoo.com",
+  "yahoo.co": "yahoo.com",
+  "icloud.co": "icloud.com",
+  "icoud.com": "icloud.com",
+};
+
+function suggestEmailFix(raw: string): string | null {
+  const email = raw.trim().toLowerCase();
+  const at = email.lastIndexOf("@");
+  if (at < 1) return null;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const fixed = DOMAIN_TYPOS[domain];
+  if (!fixed) return null;
+  return `${local}@${fixed}`;
+}
+
 function AuthPageInner() {
   const [mode, setMode] = useState<"signin" | "create">("create");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailConfirm, setEmailConfirm] = useState("");
   const [role, setRole] = useState<"worker" | "client">("client");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -49,6 +85,19 @@ function AuthPageInner() {
     if (mode === "create" && !fullName.trim()) {
       setError("Please enter your name.");
       return;
+    }
+
+    if (mode === "create") {
+      const a = email.trim().toLowerCase();
+      const b = emailConfirm.trim().toLowerCase();
+      if (!b) {
+        setError("Please confirm your email.");
+        return;
+      }
+      if (a !== b) {
+        setError("Emails do not match. Check for typos.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -124,9 +173,16 @@ function AuthPageInner() {
     );
   }
 
+  const emailSuggestion = suggestEmailFix(email);
+  const emailsMatch =
+    mode === "signin" ||
+    (email.trim().length > 0 &&
+      email.trim().toLowerCase() === emailConfirm.trim().toLowerCase());
+
   const canSubmit =
     email.includes("@") &&
     (mode === "signin" || fullName.trim().length > 0) &&
+    emailsMatch &&
     !loading;
 
   return (
@@ -227,7 +283,44 @@ function AuthPageInner() {
             className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
             autoComplete="email"
           />
+          {emailSuggestion && (
+            <button
+              type="button"
+              onClick={() => {
+                setEmail(emailSuggestion);
+                if (mode === "create") setEmailConfirm(emailSuggestion);
+                setError("");
+              }}
+              className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-left w-full"
+            >
+              Did you mean <strong>{emailSuggestion}</strong>? Tap to fix
+            </button>
+          )}
         </div>
+
+        {mode === "create" && (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Confirm email</label>
+            <input
+              type="email"
+              value={emailConfirm}
+              onChange={(e) => setEmailConfirm(e.target.value)}
+              placeholder="Type email again"
+              className={`w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 ${
+                emailConfirm &&
+                email.trim().toLowerCase() !== emailConfirm.trim().toLowerCase()
+                  ? "border-red-300"
+                  : ""
+              }`}
+              autoComplete="email"
+            />
+            {emailConfirm &&
+              email.trim().toLowerCase() !==
+                emailConfirm.trim().toLowerCase() && (
+                <p className="text-xs text-red-600">Emails do not match</p>
+              )}
+          </div>
+        )}
 
         {error && (
           <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{error}</p>
