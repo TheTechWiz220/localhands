@@ -1,5 +1,89 @@
 -- 4. Testing assignments: prevent testers from transferring assignments or
 -- inventing paid/accepted states. Admins remain unrestricted.
+
+-- Legacy testing row ownership hardening.
+create or replace function public.protect_legacy_testing_ownership()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  if exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin'
+  ) then
+    return new;
+  end if;
+
+  if TG_TABLE_NAME = 'test_assignments' then
+    if new.user_id is distinct from old.user_id
+       or new.campaign_id is distinct from old.campaign_id then
+      raise exception 'Assignment ownership cannot be changed';
+    end if;
+    if old.status <> 'claimed' or new.status <> 'submitted' then
+      raise exception 'Invalid tester assignment transition';
+    end if;
+  elsif TG_TABLE_NAME = 'test_reports' then
+    if new.assignment_id is distinct from old.assignment_id then
+      raise exception 'Report assignment cannot be changed';
+    end if;
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists trg_protect_legacy_test_assignment on public.test_assignments;
+create trigger trg_protect_legacy_test_assignment
+before update on public.test_assignments
+for each row execute function public.protect_legacy_testing_ownership();
+
+drop trigger if exists trg_protect_legacy_test_report on public.test_reports;
+create trigger trg_protect_legacy_test_report
+before update on public.test_reports
+for each row execute function public.protect_legacy_testing_ownership();
+
+drop policy if exists "test_assignments_update_own_or_admin" on public.test_assignments;
+create policy "test_assignments_update_own_or_admin"
+on public.test_assignments
+for update to authenticated
+using (
+  user_id = auth.uid()
+  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+)
+with check (
+  user_id = auth.uid()
+  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+drop policy if exists "test_reports_update_own" on public.test_reports;
+create policy "test_reports_update_own"
+on public.test_reports
+for update to authenticated
+using (
+  exists (
+    select 1 from public.test_assignments a
+    where a.id = test_reports.assignment_id and a.user_id = auth.uid()
+  )
+  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+)
+with check (
+  exists (
+    select 1 from public.test_assignments a
+    where a.id = test_reports.assignment_id and a.user_id = auth.uid()
+  )
+  or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
+);
+
+-- Prevent worker-skill ownership reassignment through the legacy ALL policy.
+drop policy if exists "Workers can manage own skills" on public.worker_skills;
+create policy "Workers can manage own skills"
+on public.worker_skills
+for all to authenticated
+using (auth.uid() = worker_id)
+with check (auth.uid() = worker_id);
+
 -- ---------------------------------------------------------------------------
 
 create or replace function public.protect_test_assignment_security()
