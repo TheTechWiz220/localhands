@@ -36,7 +36,7 @@ export default function DirectoryPage() {
 
       // Show verified + suspended so the public can see suspension status
       const { data } = await supabase
-        .from("profiles")
+        .from("public_worker_profiles")
         .select(
           "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at, id_verified"
         )
