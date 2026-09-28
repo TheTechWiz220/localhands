@@ -69,7 +69,6 @@ with checks(check_name, passed, detail) as (
     ),
     'Tester report updates must remain bound to the assignment owner'
   union all
-  union all
   select
     'proof-media bucket size cap configured',
     exists (
