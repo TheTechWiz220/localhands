@@ -108,6 +108,36 @@ with checks(check_name, passed, detail) as (
         and allowed_mime_types is not null
     ),
     'Expected 5 MiB limit and MIME allowlist'
+  union all
+  select
+    'tester status cannot be self-modified',
+    exists (
+      select 1 from pg_trigger
+      where tgname='trg_protect_testing_tester_security'
+    ),
+    'Tester status changes must be admin-controlled'
+  union all
+  select
+    'applications require active tester and published campaign',
+    exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='testing_applications'
+        and policyname='testers apply'
+        and with_check like '%status = ''active''%'
+        and with_check like '%status = ''published''%'
+    ),
+    'Only active testers may apply to published campaigns'
+  union all
+  select
+    'finding task must belong to submitted campaign',
+    exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='testing_findings'
+        and policyname='accepted testers submit findings'
+        and with_check like '%testing_findings.campaign_id%'
+        and with_check like '%testing_findings.task_id%'
+    ),
+    'A finding cannot attach a task from another campaign'
 )
 select check_name,
        case when passed then 'PASS' else 'FAIL' end as result,
