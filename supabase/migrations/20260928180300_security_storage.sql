@@ -2,8 +2,6 @@
 -- Keeps proof-media public for the current MVP, but prevents users from
 -- writing to another user's folder and removes unrestricted update access.
 
-begin;
-
 drop policy if exists "Authenticated upload proof-media" on storage.objects;
 drop policy if exists "Authenticated users can upload proof-media" on storage.objects;
 drop policy if exists "Authenticated update proof-media" on storage.objects;
