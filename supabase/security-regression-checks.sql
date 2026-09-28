@@ -152,6 +152,21 @@ with checks(check_name, passed, detail) as (
         )
     ),
     'Unscoped proof-media write policies must not remain'
+  union all
+  select
+    'legacy test assignment ownership protected',
+    exists (select 1 from pg_trigger where tgname='trg_protect_legacy_test_assignment')
+    and exists (select 1 from pg_policies where schemaname='public' and tablename='test_assignments'
+      and policyname='test_assignments_update_own_or_admin' and with_check is not null),
+    'Legacy tester assignments require ownership-preserving updates'
+  union all
+  select
+    'legacy worker skill ownership protected',
+    exists (select 1 from pg_policies where schemaname='public' and tablename='worker_skills'
+      and policyname='Workers can manage own skills'
+      and roles::text like '%authenticated%'
+      and with_check like '%auth.uid() = worker_id%'),
+    'Worker skill ownership cannot be reassigned'
 )
 select check_name,
        case when passed then 'PASS' else 'FAIL' end as result,
