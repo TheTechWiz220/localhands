@@ -253,3 +253,64 @@ with check (
 );
 
 -- ---------------------------------------------------------------------------
+
+
+-- Ratings: only completed-job participants may create a rating, and only for
+-- the other participant.
+create or replace function public.protect_rating_security()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.from_user_id is distinct from auth.uid() then
+    raise exception 'Rating author must be the authenticated user';
+  end if;
+
+  if new.from_user_id = new.to_user_id then
+    raise exception 'Users cannot rate themselves';
+  end if;
+
+  if not exists (
+    select 1
+    from public.job_requests j
+    where j.id = new.job_id
+      and j.status = 'completed'
+      and (
+        (j.client_id = new.from_user_id and j.worker_id = new.to_user_id)
+        or
+        (j.worker_id = new.from_user_id and j.client_id = new.to_user_id)
+      )
+  ) then
+    raise exception 'Rating must reference a completed job between the two users';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_rating_security on public.ratings;
+create trigger trg_protect_rating_security
+before insert on public.ratings
+for each row execute function public.protect_rating_security();
+
+drop policy if exists "Users can insert own ratings" on public.ratings;
+create policy "Users can insert own ratings"
+on public.ratings
+for insert to authenticated
+with check (
+  from_user_id = auth.uid()
+  and to_user_id <> auth.uid()
+  and exists (
+    select 1
+    from public.job_requests j
+    where j.id = ratings.job_id
+      and j.status = 'completed'
+      and (
+        (j.client_id = auth.uid() and j.worker_id = ratings.to_user_id)
+        or
+        (j.worker_id = auth.uid() and j.client_id = ratings.to_user_id)
+      )
+  )
+);
