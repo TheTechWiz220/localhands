@@ -176,6 +176,15 @@ with checks(check_name, passed, detail) as (
       and with_check like '%j.status = ''completed''%'
       and with_check like '%ratings.job_id%'),
     'Ratings require a completed job between author and recipient'
+  union all
+  select
+    'completed jobs are not public',
+    not exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='job_requests'
+        and policyname='Completed jobs are publicly readable'
+    ),
+    'Completed job rows must not be publicly readable'
 )
 select check_name,
        case when passed then 'PASS' else 'FAIL' end as result,
