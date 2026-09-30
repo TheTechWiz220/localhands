@@ -423,7 +423,7 @@ if (!content.includes('RejectedPanel')) {
 
 content = content.replace(
   '"overview" | "verify" | "workers" | "suspended" | "clients" | "jobs"',
-  '"overview" | "verify" | "workers" | "suspended" | "rejected"'
+  '"overview" | "verify" | "workers" | "suspended" | "clients" | "jobs" | "rejected"'
 );
 
 const oldAdminTabs = `[
@@ -439,6 +439,8 @@ const currentAdminTabs = `[
             ["verify", "Verify"],
             ["workers", "Workers"],
             ["suspended", "Suspended"],
+            ["clients", "Clients"],
+            ["jobs", "Jobs"],
             ["rejected", "Rejected"],
           ] as const`;
 if (content.includes(oldAdminTabs)) {
