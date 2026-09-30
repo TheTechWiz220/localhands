@@ -412,6 +412,49 @@ if (!content.includes("Certificates / training")) {
   );
 }
 
+
+// --- Keep generated admin source in sync with the current Rejected workflow ---
+if (!content.includes('RejectedPanel')) {
+  content = content.replace(
+    'import Link from "next/link";',
+    'import Link from "next/link";\nimport RejectedPanel from "@/components/admin/RejectedPanel";'
+  );
+}
+
+content = content.replace(
+  '"overview" | "verify" | "workers" | "suspended" | "clients" | "jobs"',
+  '"overview" | "verify" | "workers" | "suspended" | "rejected"'
+);
+
+const oldAdminTabs = `[
+            ["overview", "Overview"],
+            ["verify", "Verify"],
+            ["workers", "Workers"],
+            ["suspended", "Suspended"],
+            ["clients", "Clients"],
+            ["jobs", "Jobs"],
+          ] as const`;
+const currentAdminTabs = `[
+            ["overview", "Overview"],
+            ["verify", "Verify"],
+            ["workers", "Workers"],
+            ["suspended", "Suspended"],
+            ["rejected", "Rejected"],
+          ] as const`;
+if (content.includes(oldAdminTabs)) {
+  content = content.replace(oldAdminTabs, currentAdminTabs);
+}
+
+if (!content.includes('{tab === "rejected" && <RejectedPanel />}')) {
+  const suspendedPanel = '{tab === "suspended" && <SuspendedPanel />}';
+  if (content.includes(suspendedPanel)) {
+    content = content.replace(
+      suspendedPanel,
+      suspendedPanel + '\n\n      {tab === "rejected" && <RejectedPanel />}'
+    );
+  }
+}
+
 fs.writeFileSync(outPath, content);
 console.log(
   "assembled",
