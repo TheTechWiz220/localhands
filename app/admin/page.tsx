@@ -21,10 +21,10 @@ import {
   VerifiedWorkerCard,
   type ListedWorker,
 } from "@/components/admin/VerifiedWorkerCard";
-import SuspendedPanel from "@/components/admin/SuspendedPanel";
+import SuspendedPanel from "@/components/admin/SuspendedPanel";\nimport RejectedPanel from "@/components/admin/RejectedPanel";
 
 type AccessState = "loading" | "denied" | "allowed";
-type Tab = "overview" | "verify" | "workers" | "suspended";
+type Tab = "overview" | "verify" | "workers" | "suspended" | "rejected";
 
 type Stats = {
   pendingWorkers: number;
@@ -387,7 +387,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {tab === "suspended" && <SuspendedPanel />}
+      {tab === "suspended" && <SuspendedPanel />}\n\n      {tab === "rejected" && <RejectedPanel />}
 
       <Link href="/">
         <Button variant="outline" className="w-full">
