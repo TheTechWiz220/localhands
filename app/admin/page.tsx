@@ -30,6 +30,7 @@ type Stats = {
   pendingWorkers: number;
   verifiedWorkers: number;
   suspendedWorkers: number;
+  rejectedWorkers: number;
 };
 
 export default function AdminPage() {
@@ -60,10 +61,16 @@ export default function AdminPage() {
       .select("id", { count: "exact", head: true })
       .eq("role", "worker")
       .eq("verification_status", "suspended");
+    const { count: rejectedWorkers } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "worker")
+      .eq("verification_status", "rejected");
     setStats({
       pendingWorkers: pendingWorkers || 0,
       verifiedWorkers: verifiedWorkers || 0,
       suspendedWorkers: suspendedWorkers || 0,
+      rejectedWorkers: rejectedWorkers || 0,
     });
   }, [supabase]);
 
@@ -260,6 +267,7 @@ export default function AdminPage() {
             ["verify", "Verify"],
             ["workers", "Workers"],
             ["suspended", "Suspended"],
+            ["rejected", "Rejected"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -281,6 +289,9 @@ export default function AdminPage() {
             )}
             {id === "suspended" && stats && stats.suspendedWorkers > 0 && (
               <span className="ml-1">({stats.suspendedWorkers})</span>
+            )}
+            {id === "rejected" && stats && stats.rejectedWorkers > 0 && (
+              <span className="ml-1">({stats.rejectedWorkers})</span>
             )}
           </button>
         ))}
