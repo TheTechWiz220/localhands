@@ -102,6 +102,7 @@ export default function RejectedPanel() {
 
     await supabase.from("worker_skills").delete().eq("worker_id", workerId);
     await supabase.from("proof_media").delete().eq("worker_id", workerId);
+    await supabase.from("worker_certificates").delete().eq("worker_id", workerId);
 
     setActingId(null);
     setMessage("Account reset to Client. Worker profile data was cleared; it can now use Apply as Worker again.");
