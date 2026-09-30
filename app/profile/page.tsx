@@ -326,12 +326,14 @@ export default function ProfilePage() {
     }
     setCertUploading(true);
     setUploadError("");
+    let uploadedPath: string | null = null;
     try {
       let ext = (file.name || "cert.jpg").split(".").pop()?.toLowerCase() || "jpg";
       if (!["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) ext = "jpg";
       const contentType =
         file.type && file.type.startsWith("image/") ? file.type : "image/jpeg";
       const path = `${userId}/cert-${Date.now()}.${ext}`;
+      uploadedPath = path;
       const { error: uploadErr } = await supabase.storage
         .from("proof-media")
         .upload(path, file, { upsert: true, contentType, cacheControl: "3600" });
@@ -360,6 +362,13 @@ export default function ProfilePage() {
       setCertTitle("");
     } catch (err: any) {
       console.error(err);
+      if (uploadedPath) {
+        try {
+          await supabase.storage.from("proof-media").remove([uploadedPath]);
+        } catch {
+          /* best-effort cleanup */
+        }
+      }
       setUploadError(err?.message || "Could not add certificate.");
     }
     setCertUploading(false);
