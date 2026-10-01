@@ -90,6 +90,7 @@ export default function RejectedPanel() {
         whatsapp_phone: null,
         avatar_url: null,
         availability: null,
+        spoken_languages: [],
         updated_at: new Date().toISOString(),
       })
       .eq("id", workerId);
