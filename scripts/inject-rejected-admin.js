@@ -94,7 +94,7 @@ module.exports = function injectRejectedAdmin(content) {
               className="rounded-xl border bg-white p-4 text-left hover:border-red-300 transition"
             >
               <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-                <XCircle className="h-3.5 w-3.5" /> Rejected
+                <Ban className="h-3.5 w-3.5" /> Rejected
               </div>
               <p className="text-2xl font-bold">{stats.rejectedWorkers}</p>
               <p className="text-xs text-red-700">tap to review</p>
@@ -103,10 +103,6 @@ module.exports = function injectRejectedAdmin(content) {
     if (content.includes(suspendedCardEnd)) {
       content = content.replace(suspendedCardEnd, withRejectedCard);
     }
-  }
-
-  if (content.includes("Ban,") && !content.includes("XCircle")) {
-    content = content.replace("Ban,", "Ban,\n  XCircle,");
   }
 
   return content;
