@@ -107,7 +107,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { error: profileErr } = await service
+    // Use the authenticated admin client for the profile update. The
+    // profile security trigger intentionally checks auth.uid() and therefore
+    // must see the real admin session rather than the service-role client.
+    const { error: profileErr } = await server
       .from("profiles")
       .update({
         role: "client",
