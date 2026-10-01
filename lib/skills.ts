@@ -32,6 +32,20 @@ export const SKILLS = [
   "Other",
 ] as const;
 
+/** Spoken languages common in The Gambia */
+export const LANGUAGES = [
+  "English",
+  "Mandinka",
+  "Wolof",
+  "Fula",
+  "Jola",
+  "Serahule",
+  "Serer",
+  "Manjago",
+  "French",
+  "Other",
+] as const;
+
 /** Areas people actually use when describing where the job is */
 export const AREAS = [
   // Greater Banjul / Kombo
