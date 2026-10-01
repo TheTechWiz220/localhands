@@ -1,6 +1,9 @@
 const fs = require("fs");
+const zlib = require("zlib");
 const path = require("path");
-const p1 = fs.readFileSync(path.join(__dirname, "assemble-admin-p1.txt"), "utf8");
-const p2 = fs.readFileSync(path.join(__dirname, "assemble-admin-p2.txt"), "utf8");
-fs.writeFileSync(path.join(__dirname, "_assemble_body.js"), p1 + p2);
-require("./_assemble_body.js");
+const a = fs.readFileSync(path.join(__dirname, "assemble-b64-a.txt"), "utf8").trim();
+const b = fs.readFileSync(path.join(__dirname, "assemble-b64-b.txt"), "utf8").trim();
+const src = zlib.inflateSync(Buffer.from(a + b, "base64")).toString("utf8");
+const out = path.join(__dirname, "_assemble_body.js");
+fs.writeFileSync(out, src);
+require(out);
