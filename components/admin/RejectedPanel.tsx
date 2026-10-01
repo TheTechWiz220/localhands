@@ -68,7 +68,7 @@ export default function RejectedPanel() {
 
   async function resetToClient(workerId: string, workerName: string | null) {
     const ok = window.confirm(
-      `Reset ${workerName || "this account"} to Client? This clears the worker verification state and worker profile details (bio, WhatsApp, photo and availability) so the account can apply again. The login, name and area remain.`
+      `Reset ${workerName || "this account"} to Client? This clears the worker verification state, worker skills, proof photos, certificates, and worker profile details so the account can apply again. The login, name and area remain.`
     );
     if (!ok) return;
 
@@ -76,38 +76,30 @@ export default function RejectedPanel() {
     setMessage("");
     setErrorMsg("");
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        role: "client",
-        verification_status: "pending",
-        is_verified: false,
-        id_verified: false,
-        id_verified_at: null,
-        verification_notes: null,
-        admin_notes: null,
-        bio: null,
-        whatsapp_phone: null,
-        avatar_url: null,
-        availability: null,
-        spoken_languages: [],
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", workerId);
+    try {
+      const response = await fetch("/api/admin/reset-worker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workerId }),
+      });
 
-    if (error) {
-      setErrorMsg(error.message);
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Reset failed.");
+      }
+
       setActingId(null);
-      return;
+      setMessage(
+        result.storageWarning
+          ? "Account reset to Client. Profile data was cleared, but some old media could not be removed from Storage."
+          : "Account reset to Client. Worker profile data and media were cleared; it can now use Apply as Worker again."
+      );
+      setList((prev) => prev.filter((w) => w.id !== workerId));
+    } catch (err: any) {
+      setActingId(null);
+      setErrorMsg(err?.message || "Reset failed.");
     }
-
-    await supabase.from("worker_skills").delete().eq("worker_id", workerId);
-    await supabase.from("proof_media").delete().eq("worker_id", workerId);
-    await supabase.from("worker_certificates").delete().eq("worker_id", workerId);
-
-    setActingId(null);
-    setMessage("Account reset to Client. Worker profile data was cleared; it can now use Apply as Worker again.");
-    setList((prev) => prev.filter((w) => w.id !== workerId));
   }
 
   return (
