@@ -542,7 +542,14 @@ export default function ProfilePage() {
           media_type: "image",
         });
 
-        if (insertError) throw new Error(insertError.message);
+        if (insertError) {
+          try {
+            await supabase.storage.from("proof-media").remove([path]);
+          } catch {
+            /* best-effort cleanup */
+          }
+          throw new Error(insertError.message);
+        }
         count += 1;
       }
 
