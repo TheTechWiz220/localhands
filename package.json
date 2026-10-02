@@ -3,8 +3,8 @@
   "version": "0.3.8",
   "private": true,
   "scripts": {
-    "prebuild": "node scripts/assemble-admin.js && node scripts/restore-pages.js",
-    "dev": "node scripts/assemble-admin.js && node scripts/restore-pages.js && next dev",
+    "prebuild": "node scripts/assemble-admin.js && node scripts/restore-pages.js && node scripts/apply-push-notify.js",
+    "dev": "node scripts/assemble-admin.js && node scripts/restore-pages.js && node scripts/apply-push-notify.js && next dev",
     "build": "next build",
     "start": "next start"
   },
