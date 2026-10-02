@@ -1,6 +1,6 @@
-/* LocalHands minimal service worker */
-const CACHE = "localhands-v3";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icon", "/privacy"];
+/* LocalHands service worker — cache + web push */
+const CACHE = "localhands-v4";
+const PRECACHE = ["/", "/manifest.webmanifest", "/icon", "/privacy", "/jobs"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -51,4 +51,49 @@ self.addEventListener("fetch", (event) => {
         .catch(() => caches.match(req))
     );
   }
+});
+
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "LocalHands",
+    body: "You have an update",
+    url: "/jobs",
+  };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
+  } catch (_) {
+    try {
+      data.body = event.data ? event.data.text() : data.body;
+    } catch (_) {}
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "LocalHands", {
+      body: data.body || "",
+      icon: "/icon",
+      badge: "/icon",
+      data: { url: data.url || "/jobs" },
+      tag: data.tag || "localhands",
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/jobs";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.navigate(target);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(target);
+    })
+  );
 });
