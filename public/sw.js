@@ -1,5 +1,5 @@
 /* LocalHands service worker — cache + web push */
-const CACHE = "localhands-v6";
+const CACHE = "localhands-v7";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
@@ -78,8 +78,7 @@ self.addEventListener("push", (event) => {
     } catch (_) {}
   }
 
-  // Absolute HTTPS URLs + dedicated static 192px solid-bg PNG
-  // (dynamic /icon and relative paths often show as white squares on Android)
+  // Absolute HTTPS URLs + static solid PNGs required for Android (dynamic /icon and relative paths often show as white squares on Android)
   const origin = self.location.origin;
   event.waitUntil(
     self.registration.showNotification(data.title || "LocalHands", {
