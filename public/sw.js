@@ -1,13 +1,11 @@
 /* LocalHands service worker — cache + web push */
-const CACHE = "localhands-v8";
+const CACHE = "localhands-v9";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
   "/icon",
   "/privacy",
   "/jobs",
-  "/icons/notification-192.png",
-  "/icons/badge-96.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -44,7 +42,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (
-    url.pathname.startsWith("/icons/") ||
     url.pathname === "/icon" ||
     url.pathname === "/apple-icon" ||
     url.pathname === "/manifest.webmanifest"
@@ -78,16 +75,16 @@ self.addEventListener("push", (event) => {
     } catch (_) {}
   }
 
-  // Absolute HTTPS URLs required. Use dedicated notification icon (green + white hand).
-  // Also set image for expanded view on Android.
+  // Left notification icon = real LocalHands app logo (/icon).
+  // Absolute URL required. Cache-bust so old broken PNGs are never used.
+  // Do NOT set image: — that is the large expanded image, not the left circle.
   const origin = self.location.origin;
-  const iconUrl = origin + "/icons/notification-192.png";
+  const iconUrl = origin + "/icon?v=9";
   event.waitUntil(
     self.registration.showNotification(data.title || "LocalHands", {
       body: data.body || "",
       icon: iconUrl,
-      badge: origin + "/icons/badge-96.png",
-      image: iconUrl,
+      badge: origin + "/icon?v=9",
       data: { url: data.url || "/jobs" },
       tag: data.tag || "localhands",
       renotify: true,
