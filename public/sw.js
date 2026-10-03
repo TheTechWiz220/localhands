@@ -1,6 +1,14 @@
 /* LocalHands service worker — cache + web push */
-const CACHE = "localhands-v5";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icon", "/privacy", "/jobs"];
+const CACHE = "localhands-v6";
+const PRECACHE = [
+  "/",
+  "/manifest.webmanifest",
+  "/icon",
+  "/privacy",
+  "/jobs",
+  "/icons/notification-192.png",
+  "/icons/badge-96.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -70,14 +78,14 @@ self.addEventListener("push", (event) => {
     } catch (_) {}
   }
 
-  // Absolute HTTPS URLs are required for Android push notification icons
-  // (relative paths often show as blank/white squares)
+  // Absolute HTTPS URLs + dedicated static 192px solid-bg PNG
+  // (dynamic /icon and relative paths often show as white squares on Android)
   const origin = self.location.origin;
   event.waitUntil(
     self.registration.showNotification(data.title || "LocalHands", {
       body: data.body || "",
-      icon: origin + "/icon",
-      badge: origin + "/icon",
+      icon: origin + "/icons/notification-192.png",
+      badge: origin + "/icons/badge-96.png",
       data: { url: data.url || "/jobs" },
       tag: data.tag || "localhands",
       renotify: true,
