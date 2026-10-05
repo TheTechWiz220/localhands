@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    // Open job ad → notify approved workers who list this skill
+    // Open job ad → notify verified workers (skill match preferred)
     if (type === "job_ad_to_workers") {
       if (job.client_id !== user.id || job.worker_id) {
         return NextResponse.json({ error: "Invalid job ad notify" }, { status: 400 });
@@ -87,29 +87,30 @@ export async function POST(req: Request) {
           .from("worker_skills")
           .select("worker_id")
           .eq("skill", skill);
-        const candidates = [...new Set((skillRows || []).map((r) => r.worker_id).filter(Boolean))];
+        const candidates = [
+          ...new Set((skillRows || []).map((r) => r.worker_id).filter(Boolean)),
+        ];
         if (candidates.length) {
           const { data: profiles } = await admin
             .from("profiles")
             .select("id")
             .in("id", candidates)
             .eq("role", "worker")
-            .eq("verification_status", "approved");
+            .eq("verification_status", "verified");
           workerIds = (profiles || []).map((p) => p.id);
         }
       }
 
-      // Fallback: all approved workers with push (helps testing if skill has no matches)
+      // Fallback: all verified workers (so testing works if skill has no matches)
       if (!workerIds.length) {
         const { data: allWorkers } = await admin
           .from("profiles")
           .select("id")
           .eq("role", "worker")
-          .eq("verification_status", "approved");
+          .eq("verification_status", "verified");
         workerIds = (allWorkers || []).map((p) => p.id);
       }
 
-      // Never notify the posting client
       workerIds = workerIds.filter((id) => id !== user.id);
 
       const result = await sendPushToUsers(workerIds, {
