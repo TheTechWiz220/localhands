@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/** Assemble real LocalHands logo PNGs for Android push (prebuild).
- * icon = full-color RGB (left circle in notification)
- * badge = white silhouette on transparent (status bar / small icon)
+/** Assemble LocalHands push icons (prebuild).
+ * icon = full-color polished logo (left notification circle)
+ * badge = white outline hand on transparent (Android status bar only)
  */
 const fs = require("fs");
 const path = require("path");
