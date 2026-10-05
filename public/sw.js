@@ -1,11 +1,13 @@
 /* LocalHands service worker — cache + web push */
-const CACHE = "localhands-v9";
+const CACHE = "localhands-v10";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
   "/icon",
   "/privacy",
   "/jobs",
+  "/icons/notification-192.png",
+  "/icons/badge-96.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -41,7 +43,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Network-first for icons so push always gets fresh static PNGs
   if (
+    url.pathname.startsWith("/icons/") ||
     url.pathname === "/icon" ||
     url.pathname === "/apple-icon" ||
     url.pathname === "/manifest.webmanifest"
@@ -75,16 +79,14 @@ self.addEventListener("push", (event) => {
     } catch (_) {}
   }
 
-  // Left notification icon = real LocalHands app logo (/icon).
-  // Absolute URL required. Cache-bust so old broken PNGs are never used.
-  // Do NOT set image: — that is the large expanded image, not the left circle.
+  // LEFT circle = static PNG of real logo (Android push cannot reliably load dynamic /icon).
+  // RIGHT green hand is separate (system/app chrome) — do not touch.
   const origin = self.location.origin;
-  const iconUrl = origin + "/icon?v=9";
   event.waitUntil(
     self.registration.showNotification(data.title || "LocalHands", {
       body: data.body || "",
-      icon: iconUrl,
-      badge: origin + "/icon?v=9",
+      icon: origin + "/icons/notification-192.png",
+      badge: origin + "/icons/badge-96.png",
       data: { url: data.url || "/jobs" },
       tag: data.tag || "localhands",
       renotify: true,
