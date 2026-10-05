@@ -98,7 +98,7 @@ module.exports = function injectPushNotify(content, kind) {
       );
     }
     if (!content.includes("job_ad_to_workers")) {
-      // Primary path: status "open" succeeds
+      // Use client-generated UUID so notify always has an id (RLS may hide select)
       content = content.replace(
         `const { error: insertError } = await supabase.from("job_requests").insert({
       client_id: clientId,
@@ -114,26 +114,23 @@ module.exports = function injectPushNotify(content, kind) {
     setSubmitting(false);
 
     if (insertError) {`,
-        `const { data: inserted, error: insertError } = await supabase
-      .from("job_requests")
-      .insert({
-        client_id: clientId,
-        worker_id: null,
-        title: title.trim(),
-        description: description.trim(),
-        skill_needed: skill,
-        location_area: location,
-        budget: Number(budget),
-        status: "open",
-      })
-      .select("id")
-      .maybeSingle();
+        `const jobId = crypto.randomUUID();
+    const { error: insertError } = await supabase.from("job_requests").insert({
+      id: jobId,
+      client_id: clientId,
+      worker_id: null,
+      title: title.trim(),
+      description: description.trim(),
+      skill_needed: skill,
+      location_area: location,
+      budget: Number(budget),
+      status: "open",
+    });
 
     setSubmitting(false);
 
     if (insertError) {`
       );
-      // Fallback path: status "pending" after open fails
       content = content.replace(
         `const { error: e2 } = await supabase.from("job_requests").insert({
           client_id: clientId,
@@ -155,20 +152,18 @@ module.exports = function injectPushNotify(content, kind) {
         }
         setDone(true);
         return;`,
-        `const { data: insertedFallback, error: e2 } = await supabase
-          .from("job_requests")
-          .insert({
-            client_id: clientId,
-            worker_id: null,
-            title: title.trim(),
-            description: description.trim(),
-            skill_needed: skill,
-            location_area: location,
-            budget: Number(budget),
-            status: "pending",
-          })
-          .select("id")
-          .maybeSingle();
+        `const fallbackId = crypto.randomUUID();
+        const { error: e2 } = await supabase.from("job_requests").insert({
+          id: fallbackId,
+          client_id: clientId,
+          worker_id: null,
+          title: title.trim(),
+          description: description.trim(),
+          skill_needed: skill,
+          location_area: location,
+          budget: Number(budget),
+          status: "pending",
+        });
         if (e2) {
           setError(
             e2.message.includes("policy")
@@ -177,13 +172,10 @@ module.exports = function injectPushNotify(content, kind) {
           );
           return;
         }
-        if (insertedFallback?.id) {
-          void notifyPush("job_ad_to_workers", insertedFallback.id);
-        }
+        void notifyPush("job_ad_to_workers", fallbackId);
         setDone(true);
         return;`
       );
-      // Success after primary open insert
       content = content.replace(
         `      return;
     }
@@ -195,10 +187,7 @@ module.exports = function injectPushNotify(content, kind) {
         `      return;
     }
 
-    if (inserted?.id) {
-      void notifyPush("job_ad_to_workers", inserted.id);
-    }
-
+    void notifyPush("job_ad_to_workers", jobId);
     setDone(true);
   }
 
