@@ -1,5 +1,5 @@
 /* LocalHands service worker — cache + web push */
-const CACHE = "localhands-v10";
+const CACHE = "localhands-v11";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
