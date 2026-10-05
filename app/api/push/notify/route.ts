@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { sendPushToUser } from "@/lib/push/server";
+import { sendPushToUser, sendPushToUsers } from "@/lib/push/server";
 
 export const runtime = "nodejs";
 
 type Body = {
-  type?: "request_to_worker" | "claim_to_client" | "accepted_to_client";
+  type?: "request_to_worker" | "claim_to_client" | "accepted_to_client" | "job_ad_to_workers";
   jobRequestId?: string;
 };
 
@@ -71,6 +71,54 @@ export async function POST(req: Request) {
         tag: `claim-${job.id}`,
       });
       return NextResponse.json({ ok: true, ...result });
+    }
+
+    // Open job ad → notify approved workers who list this skill
+    if (type === "job_ad_to_workers") {
+      if (job.client_id !== user.id || job.worker_id) {
+        return NextResponse.json({ error: "Invalid job ad notify" }, { status: 400 });
+      }
+
+      const skill = (job.skill_needed || "").trim();
+      let workerIds: string[] = [];
+
+      if (skill) {
+        const { data: skillRows } = await admin
+          .from("worker_skills")
+          .select("worker_id")
+          .eq("skill", skill);
+        const candidates = [...new Set((skillRows || []).map((r) => r.worker_id).filter(Boolean))];
+        if (candidates.length) {
+          const { data: profiles } = await admin
+            .from("profiles")
+            .select("id")
+            .in("id", candidates)
+            .eq("role", "worker")
+            .eq("verification_status", "approved");
+          workerIds = (profiles || []).map((p) => p.id);
+        }
+      }
+
+      // Fallback: all approved workers with push (helps testing if skill has no matches)
+      if (!workerIds.length) {
+        const { data: allWorkers } = await admin
+          .from("profiles")
+          .select("id")
+          .eq("role", "worker")
+          .eq("verification_status", "approved");
+        workerIds = (allWorkers || []).map((p) => p.id);
+      }
+
+      // Never notify the posting client
+      workerIds = workerIds.filter((id) => id !== user.id);
+
+      const result = await sendPushToUsers(workerIds, {
+        title: "New job available",
+        body: `${title}${area}${budget}`,
+        url: "/jobs",
+        tag: `ad-${job.id}`,
+      });
+      return NextResponse.json({ ok: true, workers: workerIds.length, ...result });
     }
 
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });

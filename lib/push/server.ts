@@ -20,6 +20,14 @@ function configureWebPush() {
 
 export async function sendPushToUser(userId: string, payload: PushPayload) {
   if (!userId) return { sent: 0, failed: 0 };
+  return sendPushToUsers([userId], payload);
+}
+
+/** Send the same payload to many users (job-ad broadcast). */
+export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (!unique.length) return { sent: 0, failed: 0 };
+
   try {
     configureWebPush();
   } catch (e) {
@@ -30,8 +38,8 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
   const supabase = createServiceClient();
   const { data: rows, error } = await supabase
     .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .eq("user_id", userId);
+    .select("id, user_id, endpoint, p256dh, auth")
+    .in("user_id", unique);
 
   if (error || !rows?.length) {
     return { sent: 0, failed: 0 };

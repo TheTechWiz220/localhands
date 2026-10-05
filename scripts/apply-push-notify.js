@@ -5,6 +5,7 @@ const inject = require("./inject-push-notify");
 const root = path.join(__dirname, "..");
 const requestPath = path.join(root, "app/request/[workerId]/page.tsx");
 const jobsPath = path.join(root, "app/jobs/page.tsx");
+const postJobPath = path.join(root, "app/post-job/page.tsx");
 
 if (fs.existsSync(requestPath)) {
   const before = fs.readFileSync(requestPath, "utf8");
@@ -22,4 +23,11 @@ if (fs.existsSync(jobsPath)) {
     after.includes("claim_to_client"),
     after.includes("EnableNotifications")
   );
+}
+
+if (fs.existsSync(postJobPath)) {
+  const before = fs.readFileSync(postJobPath, "utf8");
+  const after = inject(before, "post-job");
+  fs.writeFileSync(postJobPath, after);
+  console.log("pushNotify post-job", after.includes("job_ad_to_workers"));
 }
