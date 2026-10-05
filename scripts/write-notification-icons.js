@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/** Assemble LocalHands push icons (prebuild).
- * icon = full-color polished logo (left notification circle)
- * badge = larger white outline hand on transparent (Android status bar)
- */
 const fs = require("fs");
 const path = require("path");
 const iconsDir = path.join(__dirname, "..", "public", "icons");
@@ -18,4 +14,4 @@ function assemble(prefix, count, outName) {
   console.log("wrote", out, fs.statSync(out).size, "bytes");
 }
 assemble("n", 12, "notification-192.png");
-assemble("b", 7, "badge-96.png");
+assemble("b", 8, "badge-96.png");
