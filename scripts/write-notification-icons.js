@@ -1,22 +1,21 @@
 #!/usr/bin/env node
-/** Write notification icons from base64 chunk files (prebuild). */
+/** Assemble real LocalHands logo PNGs for Android push (prebuild).
+ * icon = full-color RGB (left circle in notification)
+ * badge = white silhouette on transparent (status bar / small icon)
+ */
 const fs = require("fs");
 const path = require("path");
-const root = path.join(__dirname, "..");
-const iconsDir = path.join(root, "public", "icons");
+const iconsDir = path.join(__dirname, "..", "public", "icons");
+const partsDir = path.join(__dirname, "icon-parts");
 fs.mkdirSync(iconsDir, { recursive: true });
-function assemble(prefix, count) {
+function assemble(prefix, count, outName) {
   let b64 = "";
   for (let i = 0; i < count; i++) {
-    b64 += fs.readFileSync(path.join(__dirname, prefix + i + ".b64"), "utf8").trim();
+    b64 += fs.readFileSync(path.join(partsDir, prefix + i + ".txt"), "utf8").trim();
   }
-  return Buffer.from(b64, "base64");
+  const out = path.join(iconsDir, outName);
+  fs.writeFileSync(out, Buffer.from(b64, "base64"));
+  console.log("wrote", out, fs.statSync(out).size, "bytes");
 }
-const notif = assemble("n192_", 6);
-const badge = assemble("b96_", 2);
-fs.writeFileSync(path.join(iconsDir, "notification-192.png"), notif);
-fs.writeFileSync(path.join(root, "public", "notification-icon.png"), notif);
-fs.writeFileSync(path.join(iconsDir, "badge-96.png"), badge);
-console.log("wrote notification-192.png", notif.length, "bytes");
-console.log("wrote notification-icon.png", notif.length, "bytes");
-console.log("wrote badge-96.png", badge.length, "bytes");
+assemble("n", 12, "notification-192.png");
+assemble("b", 1, "badge-96.png");

@@ -1,10 +1,13 @@
 /* LocalHands service worker — cache + web push */
-const CACHE = "localhands-v12";
+const CACHE = "localhands-v13";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
+  "/icon",
   "/privacy",
   "/jobs",
+  "/icons/notification-192.png",
+  "/icons/badge-96.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -27,20 +30,6 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // NEVER intercept icon/image requests — Android push icon load must bypass SW cache
-  if (
-    url.pathname.startsWith("/icons/") ||
-    url.pathname === "/notification-icon.png" ||
-    url.pathname === "/icon" ||
-    url.pathname === "/apple-icon" ||
-    url.pathname.endsWith(".png") ||
-    url.pathname.endsWith(".jpg") ||
-    url.pathname.endsWith(".webp") ||
-    url.pathname.endsWith(".svg")
-  ) {
-    return; // browser handles natively
-  }
-
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
@@ -50,6 +39,24 @@ self.addEventListener("fetch", (event) => {
           return res;
         })
         .catch(() => caches.match(req).then((r) => r || caches.match("/")))
+    );
+    return;
+  }
+
+  if (
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/icon" ||
+    url.pathname === "/apple-icon" ||
+    url.pathname === "/manifest.webmanifest"
+  ) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req))
     );
   }
 });
@@ -71,16 +78,13 @@ self.addEventListener("push", (event) => {
     } catch (_) {}
   }
 
-  // LEFT circle = static PNG. Cache-bust so Android never uses old white icon.
-  // RIGHT green hand is app chrome (manifest /icon) — do not touch.
   const origin = self.location.origin;
-  const iconUrl = origin + "/notification-icon.png?v=12";
-  const badgeUrl = origin + "/icons/badge-96.png?v=12";
   event.waitUntil(
     self.registration.showNotification(data.title || "LocalHands", {
       body: data.body || "",
-      icon: iconUrl,
-      badge: badgeUrl,
+      icon: origin + "/icons/notification-192.png",
+      badge: origin + "/icons/badge-96.png",
+      color: "#15803d",
       data: { url: data.url || "/jobs" },
       tag: data.tag || "localhands",
       renotify: true,
