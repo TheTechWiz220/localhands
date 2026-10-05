@@ -14,5 +14,5 @@ function assemble(prefix, count, outName) {
   fs.writeFileSync(out, Buffer.from(b64, "base64"));
   console.log("wrote", out, fs.statSync(out).size, "bytes");
 }
-assemble("n", 8, "notification-192.png");
-assemble("b", 4, "badge-96.png");
+assemble("n", 10, "notification-192.png");
+assemble("b", 5, "badge-96.png");
