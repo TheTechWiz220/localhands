@@ -12,8 +12,8 @@ function assemble(prefix, count) {
   }
   return Buffer.from(b64, "base64");
 }
-const notif = assemble("n192_", 3);
-const badge = assemble("b96_", 1);
+const notif = assemble("n192_", 6);
+const badge = assemble("b96_", 2);
 fs.writeFileSync(path.join(iconsDir, "notification-192.png"), notif);
 fs.writeFileSync(path.join(root, "public", "notification-icon.png"), notif);
 fs.writeFileSync(path.join(iconsDir, "badge-96.png"), badge);
