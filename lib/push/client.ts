@@ -48,12 +48,19 @@ export async function enablePushNotifications(): Promise<
   return { ok: true };
 }
 
-export async function notifyPush(type: string, jobRequestId: string) {
+/** Job lifecycle notify (jobRequestId) or worker verification (workerId). */
+export async function notifyPush(type: string, id: string) {
   try {
+    const isWorker =
+      type === "worker_verified" ||
+      type === "worker_rejected" ||
+      type === "worker_suspended";
     await fetch("/api/push/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, jobRequestId }),
+      body: JSON.stringify(
+        isWorker ? { type, workerId: id } : { type, jobRequestId: id }
+      ),
     });
   } catch {
     // Non-blocking

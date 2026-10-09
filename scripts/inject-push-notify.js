@@ -75,12 +75,63 @@ module.exports = function injectPushNotify(content, kind) {
         'setMessage("You claimed this job. Client can pay via Wave in the app.");\n    void notifyPush("claim_to_client", job.id);\n    await loadJobs(userId);'
       );
     }
+
+    // Status updates: accept / decline / cancel / complete
+    if (!content.includes("declined_to_other")) {
+      content = content.replace(
+        "setMessage(`Job marked as ${status}.`);\n    if (status === \"completed\") {",
+        "setMessage(`Job marked as ${status}.`);\n    if (status === \"accepted\") {\n      void notifyPush(\"accepted_to_client\", jobId);\n    }\n    if (status === \"declined\") {\n      void notifyPush(\"declined_to_other\", jobId);\n    }\n    if (status === \"cancelled\") {\n      void notifyPush(\"cancelled_to_other\", jobId);\n    }\n    if (status === \"completed\") {\n      void notifyPush(\"completed_to_other\", jobId);"
+      );
+      // If accepted was already injected alone, still ensure decline/cancel/complete
+      if (!content.includes("declined_to_other")) {
+        content = content.replace(
+          "if (status === \"accepted\") {\n      void notifyPush(\"accepted_to_client\", jobId);\n    }\n    if (status === \"completed\") {",
+          "if (status === \"accepted\") {\n      void notifyPush(\"accepted_to_client\", jobId);\n    }\n    if (status === \"declined\") {\n      void notifyPush(\"declined_to_other\", jobId);\n    }\n    if (status === \"cancelled\") {\n      void notifyPush(\"cancelled_to_other\", jobId);\n    }\n    if (status === \"completed\") {\n      void notifyPush(\"completed_to_other\", jobId);"
+        );
+      }
+    } else if (!content.includes("completed_to_other")) {
+      content = content.replace(
+        "if (status === \"completed\") {",
+        "if (status === \"completed\") {\n      void notifyPush(\"completed_to_other\", jobId);"
+      );
+    }
+
+    // Legacy: only accepted was injected without decline block
     if (!content.includes("accepted_to_client")) {
       content = content.replace(
         "setMessage(`Job marked as ${status}.`);\n    if (status === \"completed\") {",
-        "setMessage(`Job marked as ${status}.`);\n    if (status === \"accepted\") {\n      void notifyPush(\"accepted_to_client\", jobId);\n    }\n    if (status === \"completed\") {"
+        "setMessage(`Job marked as ${status}.`);\n    if (status === \"accepted\") {\n      void notifyPush(\"accepted_to_client\", jobId);\n    }\n    if (status === \"declined\") {\n      void notifyPush(\"declined_to_other\", jobId);\n    }\n    if (status === \"cancelled\") {\n      void notifyPush(\"cancelled_to_other\", jobId);\n    }\n    if (status === \"completed\") {\n      void notifyPush(\"completed_to_other\", jobId);"
       );
     }
+
+    if (!content.includes("counter_to_other")) {
+      content = content.replace(
+        "setMessage(`Counter sent: ${formatGmd(amount)}. Waiting for the other side.`);\n    if (userId) await loadJobs(userId);",
+        "setMessage(`Counter sent: ${formatGmd(amount)}. Waiting for the other side.`);\n    void notifyPush(\"counter_to_other\", job.id);\n    if (userId) await loadJobs(userId);"
+      );
+    }
+
+    if (!content.includes("counter_accepted_to_other")) {
+      content = content.replace(
+        "setMessage(\n      `Counter accepted. Price locked at ${formatGmd(job.counter_amount)}. Pay via Wave in the app.`\n    );\n    if (userId) await loadJobs(userId);",
+        "setMessage(\n      `Counter accepted. Price locked at ${formatGmd(job.counter_amount)}. Pay via Wave in the app.`\n    );\n    void notifyPush(\"counter_accepted_to_other\", job.id);\n    if (userId) await loadJobs(userId);"
+      );
+    }
+
+    if (!content.includes("payment_paid_to_worker")) {
+      content = content.replace(
+        'setMessage("Marked as paid. Waiting for worker to confirm.");\n    if (userId) await loadJobs(userId);',
+        'setMessage("Marked as paid. Waiting for worker to confirm.");\n    void notifyPush("payment_paid_to_worker", job.id);\n    if (userId) await loadJobs(userId);'
+      );
+    }
+
+    if (!content.includes("payment_confirmed_to_client")) {
+      content = content.replace(
+        'setMessage("Payment confirmed. You can mark the job completed.");\n    if (userId) await loadJobs(userId);',
+        'setMessage("Payment confirmed. You can mark the job completed.");\n    void notifyPush("payment_confirmed_to_client", job.id);\n    if (userId) await loadJobs(userId);'
+      );
+    }
+
     if (!content.includes("<EnableNotifications />")) {
       content = content.replace(
         `  return (\n    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">\n      <div className="flex items-start justify-between gap-2">`,
@@ -98,7 +149,6 @@ module.exports = function injectPushNotify(content, kind) {
       );
     }
     if (!content.includes("job_ad_to_workers")) {
-      // Use client-generated UUID so notify always has an id (RLS may hide select)
       content = content.replace(
         `const { error: insertError } = await supabase.from("job_requests").insert({
       client_id: clientId,
