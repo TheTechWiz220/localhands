@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canShareContact } from "@/lib/privacy";
@@ -10,16 +11,53 @@ export function JobWhatsAppButton({
   paymentStatus,
   otherPhone,
   jobTitle,
+  jobId,
 }: {
   jobStatus: string;
   paymentStatus?: string | null;
   otherPhone?: string | null;
   jobTitle: string;
+  /** When set, fetches partner WhatsApp via API if otherPhone is missing */
+  jobId?: string;
 }) {
+  const [phone, setPhone] = useState<string | null | undefined>(otherPhone);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setPhone(otherPhone);
+  }, [otherPhone]);
+
+  useEffect(() => {
+    if (!canShareContact(jobStatus, paymentStatus)) return;
+    if (otherPhone) return;
+    if (!jobId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    fetch("/api/job-contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobRequestId: jobId }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.whatsapp_phone) setPhone(data.whatsapp_phone);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, jobStatus, paymentStatus, otherPhone]);
+
   if (!canShareContact(jobStatus, paymentStatus)) return null;
 
   const href = whatsappLink(
-    otherPhone,
+    phone,
     `Hi, about LocalHands job: ${jobTitle}`
   );
 
@@ -34,8 +72,9 @@ export function JobWhatsAppButton({
         </a>
       ) : (
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2">
-          They have not added a WhatsApp number yet. Ask them to add it under
-          Profile.
+          {loading
+            ? "Loading contact…"
+            : "They have not added a WhatsApp number yet. Ask them to add it under Profile."}
         </p>
       )}
       <p className="text-[11px] text-gray-400">
