@@ -30,3 +30,7 @@ const p0 = fs.readFileSync(path.join(__dirname, "pages-profile-0.zhex"), "utf8")
 const p1 = fs.readFileSync(path.join(__dirname, "pages-profile-1.zhex"), "utf8");
 const p2 = fs.readFileSync(path.join(__dirname, "pages-profile-2.zhex"), "utf8");
 zhexWrite([p0, p1, p2], "app/profile/page.tsx");
+
+// Jobs page (includes WhatsApp via job_participant_profiles)
+const jobsB64 = fs.readFileSync(path.join(__dirname, "pages-jobs.zlib.b64"), "utf8");
+inflateWrite(jobsB64, "app/jobs/page.tsx");
