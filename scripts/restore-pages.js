@@ -39,11 +39,29 @@ function httpGet(url) {
 }
 
 function patchJobsWhatsApp(text) {
+  // Pass jobId so button can fetch contact via /api/job-contact (bypasses RLS safely)
+  if (!text.includes("jobId={job.id}")) {
+    text = text.replace(
+      `<JobWhatsAppButton
+                  jobStatus={job.status}
+                  paymentStatus={payStatus}
+                  otherPhone={job.other_whatsapp}
+                  jobTitle={job.title}
+                />`,
+      `<JobWhatsAppButton
+                  jobStatus={job.status}
+                  paymentStatus={payStatus}
+                  otherPhone={job.other_whatsapp}
+                  jobTitle={job.title}
+                  jobId={job.id}
+                />`
+    );
+  }
+
   if (text.includes("job_participant_profiles")) return text;
   const marker = "let client_wa: string | null = null;";
   if (!text.includes(marker)) return text;
 
-  // Replace profile-based WA load with job_participant_profiles
   text = text.replace(
     /let client_wa: string \| null = null;\n    let worker_wa: string \| null = null;[\s\S]*?const other_whatsapp = uid === j\.client_id \? worker_wa : client_wa;/
     ,
@@ -76,7 +94,6 @@ function patchJobsWhatsApp(text) {
     }`
   );
 
-  // Remove duplicate otherId declaration later in the function
   text = text.replace(
     /const otherId = uid === j\.client_id \? j\.worker_id : j\.client_id;\n    let other_avg_rating = 0;/,
     "let other_avg_rating = 0;"
@@ -108,6 +125,8 @@ async function main() {
     console.log(
       "restored app/jobs/page.tsx",
       text.length,
+      "jobId",
+      text.includes("jobId={job.id}"),
       "wa",
       text.includes("job_participant_profiles")
     );
