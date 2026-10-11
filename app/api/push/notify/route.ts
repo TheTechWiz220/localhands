@@ -20,9 +20,12 @@ type Body = {
     | "payment_confirmed_to_client"
     | "worker_verified"
     | "worker_rejected"
-    | "worker_suspended";
+    | "worker_suspended"
+    | "test_report_to_admins"
+    | "test_review_to_tester";
   jobRequestId?: string;
   workerId?: string;
+  assignmentId?: string;
 };
 
 function otherParty(
@@ -95,6 +98,118 @@ export async function POST(req: Request) {
               };
 
       const result = await sendPushToUser(workerId, payload);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    // --- Test campaign: report submitted → all admins ---
+    if (type === "test_report_to_admins") {
+      const assignmentId = body.assignmentId?.trim();
+      if (!assignmentId) {
+        return NextResponse.json({ error: "assignmentId required" }, { status: 400 });
+      }
+
+      const { data: assignment } = await admin
+        .from("test_assignments")
+        .select("id, user_id, campaign_id, status")
+        .eq("id", assignmentId)
+        .maybeSingle();
+
+      if (!assignment || assignment.user_id !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const { data: campaign } = await admin
+        .from("test_campaigns")
+        .select("id, title")
+        .eq("id", assignment.campaign_id)
+        .maybeSingle();
+
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const { data: admins } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin");
+
+      const adminIds = (admins || [])
+        .map((a) => a.id)
+        .filter((id) => id !== user.id);
+
+      const testerName = profile?.full_name?.trim() || "A tester";
+      const campTitle = campaign?.title?.trim() || "Test campaign";
+
+      const result = await sendPushToUsers(adminIds, {
+        title: "Test report submitted",
+        body: `${testerName} · ${campTitle}`,
+        url: "/admin/testing",
+        tag: `test-report-${assignment.id}`,
+      });
+      return NextResponse.json({ ok: true, admins: adminIds.length, ...result });
+    }
+
+    // --- Test campaign: admin accept/reject → tester ---
+    if (type === "test_review_to_tester") {
+      const assignmentId = body.assignmentId?.trim();
+      if (!assignmentId) {
+        return NextResponse.json({ error: "assignmentId required" }, { status: 400 });
+      }
+
+      const { data: caller } = await admin
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (caller?.role !== "admin") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const { data: assignment } = await admin
+        .from("test_assignments")
+        .select("id, user_id, campaign_id, status")
+        .eq("id", assignmentId)
+        .maybeSingle();
+
+      if (!assignment?.user_id) {
+        return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
+      }
+
+      const { data: campaign } = await admin
+        .from("test_campaigns")
+        .select("title")
+        .eq("id", assignment.campaign_id)
+        .maybeSingle();
+
+      const status = assignment.status;
+      const campTitle = campaign?.title?.trim() || "Test campaign";
+      const accepted = status === "accepted" || status === "paid";
+      const rejected = status === "rejected";
+
+      const payload = accepted
+        ? {
+            title: "Test report accepted",
+            body: `Your report for ${campTitle} was accepted. Reward pending.`,
+            url: "/testing",
+            tag: `test-ok-${assignment.id}`,
+          }
+        : rejected
+          ? {
+              title: "Test report not accepted",
+              body: `Your report for ${campTitle} was not accepted.`,
+              url: "/testing",
+              tag: `test-no-${assignment.id}`,
+            }
+          : {
+              title: "Test report updated",
+              body: `${campTitle} · status: ${status}`,
+              url: "/testing",
+              tag: `test-${status}-${assignment.id}`,
+            };
+
+      const result = await sendPushToUser(assignment.user_id, payload);
       return NextResponse.json({ ok: true, ...result });
     }
 
@@ -201,7 +316,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, workers: workerIds.length, ...result });
     }
 
-    // Counter offer → other party
     if (type === "counter_to_other") {
       const target = otherParty(job, user.id);
       if (!target) {
@@ -216,7 +330,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    // Counter accepted → other party
     if (type === "counter_accepted_to_other") {
       const target = otherParty(job, user.id);
       if (!target) {
@@ -231,7 +344,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    // Declined / cancelled / completed → other party
     if (
       type === "declined_to_other" ||
       type === "cancelled_to_other" ||
@@ -258,7 +370,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    // Client recorded Wave payment → worker
     if (type === "payment_paid_to_worker") {
       if (job.client_id !== user.id || !job.worker_id) {
         return NextResponse.json({ error: "Invalid payment notify" }, { status: 400 });
@@ -272,7 +383,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    // Worker confirmed payment → client
     if (type === "payment_confirmed_to_client") {
       if (job.worker_id !== user.id || !job.client_id) {
         return NextResponse.json({ error: "Invalid confirm notify" }, { status: 400 });
