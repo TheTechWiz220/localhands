@@ -3,8 +3,8 @@
   "version": "0.3.9",
   "private": true,
   "scripts": {
-    "prebuild": "node scripts/write-notification-icons.js && node scripts/assemble-admin.js && node scripts/restore-pages.js && node scripts/apply-push-notify.js",
-    "dev": "node scripts/write-notification-icons.js && node scripts/assemble-admin.js && node scripts/restore-pages.js && node scripts/apply-push-notify.js && next dev",
+    "prebuild": "node scripts/write-notification-icons.js && node scripts/assemble-admin.js && node scripts/restore-pages.js && node scripts/apply-push-notify.js && node scripts/inject-test-notify.js",
+    "dev": "node scripts/write-notification-icons.js && node scripts/assemble-admin.js && node scripts/restore-pages.js && node scripts/apply-push-notify.js && node scripts/inject-test-notify.js && next dev",
     "build": "next build",
     "start": "next start"
   },
