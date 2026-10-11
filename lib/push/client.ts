@@ -48,18 +48,24 @@ export async function enablePushNotifications(): Promise<
   return { ok: true };
 }
 
-/** Job lifecycle notify (jobRequestId) or worker verification (workerId). */
+/** Job lifecycle, worker verification, or test-campaign assignment notify. */
 export async function notifyPush(type: string, id: string) {
   try {
     const isWorker =
       type === "worker_verified" ||
       type === "worker_rejected" ||
       type === "worker_suspended";
+    const isTest =
+      type === "test_report_to_admins" || type === "test_review_to_tester";
     await fetch("/api/push/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
-        isWorker ? { type, workerId: id } : { type, jobRequestId: id }
+        isWorker
+          ? { type, workerId: id }
+          : isTest
+            ? { type, assignmentId: id }
+            : { type, jobRequestId: id }
       ),
     });
   } catch {
