@@ -29,8 +29,34 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const path = request.nextUrl.pathname;
+  const isAdminPath =
+    path === "/admin" || path.startsWith("/admin/");
+
+  if (isAdminPath) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", path);
+      return NextResponse.redirect(url);
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+  }
 
   return supabaseResponse;
 }
