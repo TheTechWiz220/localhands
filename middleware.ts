@@ -34,13 +34,12 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isAdminPath =
-    path === "/admin" || path.startsWith("/admin/");
+  const isAdminPath = path === "/admin" || path.startsWith("/admin/");
 
   if (isAdminPath) {
     if (!user) {
       const url = request.nextUrl.clone();
-      url.pathname = "/login";
+      url.pathname = "/auth";
       url.searchParams.set("next", path);
       return NextResponse.redirect(url);
     }
