@@ -254,7 +254,7 @@ export default function PostJobPage() {
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">Budget (GMD) *</label>
+          <label className="text-sm font-medium mb-1.5 block">Your offer (GMD) *</label>
           <input
             type="number"
             min={1}
@@ -264,8 +264,8 @@ export default function PostJobPage() {
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Job price you agree with the worker. Platform fee is split 5% client
-            / 5% worker (10% total).
+            This is what you pay — no extra charge on top. Platform fee (10%
+            total) is taken from this offer.
           </p>
         </div>
 
@@ -273,17 +273,15 @@ export default function PostJobPage() {
           <div className="rounded-lg bg-green-50 border border-green-100 p-3 text-sm space-y-1">
             <p className="font-medium text-green-900">Price breakdown</p>
             <p className="text-gray-700">
-              Job budget: {formatGmd(fees.amount)}
+              You pay: <strong>{formatGmd(fees.clientPays)}</strong> (your offer)
             </p>
             <p className="text-gray-700">
-              You pay: <strong>{formatGmd(fees.clientPays)}</strong> (+{CLIENT_FEE_PERCENT}%)
-            </p>
-            <p className="text-gray-700">
-              Worker receives: <strong>{formatGmd(fees.workerGets)}</strong> (−{WORKER_FEE_PERCENT}%)
+              Worker receives: <strong>{formatGmd(fees.workerGets)}</strong>
             </p>
             <p className="text-gray-500 text-xs">
-              LocalHands total fee ({PLATFORM_FEE_PERCENT}%): {formatGmd(fees.fee)} —
-              split evenly between client and worker
+              LocalHands fee {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)}) —
+              {CLIENT_FEE_PERCENT}% client share + {WORKER_FEE_PERCENT}% worker
+              share, both deducted from your offer
             </p>
           </div>
         )}
