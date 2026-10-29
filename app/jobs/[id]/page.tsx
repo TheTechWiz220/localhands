@@ -288,19 +288,19 @@ export default function JobDetailPage() {
       {fees && (
         <section className="rounded-xl border border-green-100 bg-green-50/50 p-4 space-y-1">
           <p className="text-sm font-semibold text-green-900">
-            Client offer {formatGmd(fees.amount)}
+            Job budget {formatGmd(fees.amount)}
           </p>
           <p className="text-sm text-gray-800">
-            Client pays <strong>{formatGmd(fees.clientPays)}</strong> (full
-            offer — no extra)
+            Client pays <strong>{formatGmd(fees.clientPays)}</strong> (+
+            {CLIENT_FEE_PERCENT}%)
           </p>
           <p className="text-sm text-green-800">
-            Worker receives <strong>{formatGmd(fees.workerGets)}</strong>
+            Worker receives <strong>{formatGmd(fees.workerGets)}</strong> (−
+            {WORKER_FEE_PERCENT}%)
           </p>
           <p className="text-xs text-gray-600">
-            LocalHands {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)}) taken
-            from the offer — {CLIENT_FEE_PERCENT}% client share +{" "}
-            {WORKER_FEE_PERCENT}% worker share
+            LocalHands total {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)}) —
+            split {CLIENT_FEE_PERCENT}% client / {WORKER_FEE_PERCENT}% worker
           </p>
           {job.status === "countered" && job.counter_amount != null && (
             <p className="text-sm text-amber-800 pt-2 border-t border-green-100 mt-2">
