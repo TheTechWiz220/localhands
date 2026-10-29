@@ -14,7 +14,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import { calcFees, formatGmd, PLATFORM_FEE_PERCENT } from "@/lib/pricing";
+import {
+  calcFees,
+  formatGmd,
+  PLATFORM_FEE_PERCENT,
+  CLIENT_FEE_PERCENT,
+  WORKER_FEE_PERCENT,
+} from "@/lib/pricing";
 import { ClientTrustLine } from "@/components/client-trust-line";
 
 type JobDetail = {
@@ -282,13 +288,17 @@ export default function JobDetailPage() {
       {fees && (
         <section className="rounded-xl border border-green-100 bg-green-50/50 p-4 space-y-1">
           <p className="text-sm font-semibold text-green-900">
-            Budget {formatGmd(fees.amount)}
+            Job budget {formatGmd(fees.amount)}
+          </p>
+          <p className="text-sm text-gray-800">
+            Client pays <strong>{formatGmd(fees.clientPays)}</strong> (+{CLIENT_FEE_PERCENT}%)
           </p>
           <p className="text-sm text-green-800">
-            Worker receives <strong>{formatGmd(fees.workerGets)}</strong>
+            Worker receives <strong>{formatGmd(fees.workerGets)}</strong> (−{WORKER_FEE_PERCENT}%)
           </p>
           <p className="text-xs text-gray-600">
-            LocalHands keeps {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)})
+            LocalHands total {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)}) —
+            split 5% client / 5% worker
           </p>
           {job.status === "countered" && job.counter_amount != null && (
             <p className="text-sm text-amber-800 pt-2 border-t border-green-100 mt-2">

@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { SKILLS, AREAS } from "@/lib/skills";
-import { calcFees, formatGmd, PLATFORM_FEE_PERCENT } from "@/lib/pricing";
+import {
+  calcFees,
+  formatGmd,
+  PLATFORM_FEE_PERCENT,
+  CLIENT_FEE_PERCENT,
+  WORKER_FEE_PERCENT,
+} from "@/lib/pricing";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
@@ -258,21 +264,26 @@ export default function PostJobPage() {
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Prices stay in-app. After accept, pay with Wave (or Afrimoney) and
-            record the reference — not off the platform.
+            Job price you agree with the worker. Platform fee is split 5% client
+            / 5% worker (10% total).
           </p>
         </div>
 
         {fees && (
           <div className="rounded-lg bg-green-50 border border-green-100 p-3 text-sm space-y-1">
             <p className="font-medium text-green-900">Price breakdown</p>
-            <p className="text-gray-700">You pay: {formatGmd(fees.amount)}</p>
             <p className="text-gray-700">
-              Worker receives: {formatGmd(fees.workerGets)}
+              Job budget: {formatGmd(fees.amount)}
+            </p>
+            <p className="text-gray-700">
+              You pay: <strong>{formatGmd(fees.clientPays)}</strong> (+{CLIENT_FEE_PERCENT}%)
+            </p>
+            <p className="text-gray-700">
+              Worker receives: <strong>{formatGmd(fees.workerGets)}</strong> (−{WORKER_FEE_PERCENT}%)
             </p>
             <p className="text-gray-500 text-xs">
-              LocalHands fee ({PLATFORM_FEE_PERCENT}%): {formatGmd(fees.fee)} —
-              shown before anyone accepts
+              LocalHands total fee ({PLATFORM_FEE_PERCENT}%): {formatGmd(fees.fee)} —
+              split evenly between client and worker
             </p>
           </div>
         )}
