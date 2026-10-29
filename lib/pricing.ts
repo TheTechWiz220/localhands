@@ -1,10 +1,9 @@
 /** LocalHands platform pricing (Gambia MVP)
  *
- * The client's initial offer / budget is what they pay (no extra markup).
- * Platform fee is 10% total of that offer, split for transparency:
- * - 5% client share of the fee
- * - 5% worker share of the fee
- * Both are taken from the offer pot, so the worker receives 90%.
+ * Split fee on the agreed job budget / offer:
+ * - Client pays budget + 5%
+ * - Worker receives budget − 5%
+ * - LocalHands keeps 10% of budget overall
  */
 export const PLATFORM_FEE_PERCENT = 10;
 export const CLIENT_FEE_PERCENT = 5;
@@ -15,20 +14,18 @@ export function calcFees(budget: number) {
   const clientFee = Math.round((amount * CLIENT_FEE_PERCENT) / 100);
   const workerFee = Math.round((amount * WORKER_FEE_PERCENT) / 100);
   const fee = clientFee + workerFee;
-  /** Client pays their offer — nothing added on top */
-  const clientPays = amount;
-  /** Worker receives offer minus full 10% platform fee */
-  const workerGets = amount - fee;
+  const clientPays = amount + clientFee;
+  const workerGets = amount - workerFee;
   return {
-    /** Agreed job budget / client offer (stored on job_requests.budget) */
+    /** Agreed job budget / offer (stored on job_requests.budget) */
     amount,
-    /** Total platform take (10%) */
+    /** Total platform take (clientFee + workerFee) */
     fee,
     clientFee,
     workerFee,
-    /** What the client sends (same as budget) */
+    /** What the client should send (Wave / record payment) */
     clientPays,
-    /** What the worker receives after fees */
+    /** What the worker should receive after fee */
     workerGets,
     feePercent: PLATFORM_FEE_PERCENT,
   };
