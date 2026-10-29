@@ -2,10 +2,42 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Hand } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Hand, ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
+/** Main bottom-nav tabs — no in-app back on these. */
+const TAB_ROOTS = ["/", "/directory", "/jobs", "/profile"];
+
+function isTabRoot(pathname: string) {
+  if (pathname === "/") return true;
+  return TAB_ROOTS.some(
+    (root) => root !== "/" && (pathname === root || pathname.startsWith(root + "/"))
+  );
+}
+
+/** When history is empty or external, land somewhere sensible. */
+function fallbackFor(pathname: string): string {
+  if (pathname.startsWith("/worker/")) return "/directory";
+  if (pathname.startsWith("/request/")) return "/jobs";
+  if (pathname.startsWith("/post-job")) return "/";
+  if (pathname.startsWith("/apply")) return "/";
+  if (pathname.startsWith("/auth")) return "/";
+  if (pathname.startsWith("/admin")) return "/";
+  if (pathname.startsWith("/testing")) return "/";
+  if (pathname.startsWith("/privacy") || pathname.startsWith("/terms")) {
+    return "/profile";
+  }
+  if (pathname.startsWith("/sponsor")) return "/";
+  if (pathname.startsWith("/welcome")) return "/";
+  return "/";
+}
+
 export function Header() {
+  const pathname = usePathname() || "/";
+  const router = useRouter();
+  const showBack = !isTabRoot(pathname);
+
   const [email, setEmail] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -67,16 +99,36 @@ export function Header() {
     window.location.href = "/";
   }
 
+  function handleBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push(fallbackFor(pathname));
+  }
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b shadow-sm">
       <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between gap-2">
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 font-bold text-green-700 shrink-0"
-        >
-          <Hand className="h-6 w-6" />
-          <span className="text-lg">LocalHands</span>
-        </Link>
+        <div className="flex items-center gap-1 min-w-0">
+          {showBack && (
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Go back"
+              className="-ml-1.5 p-1.5 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 shrink-0"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+          )}
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 font-bold text-green-700 shrink-0"
+          >
+            <Hand className="h-6 w-6" />
+            <span className="text-lg">LocalHands</span>
+          </Link>
+        </div>
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {email && (
             <Link
