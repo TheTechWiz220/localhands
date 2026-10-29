@@ -6,18 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { Hand, ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-/** Main bottom-nav tabs — no in-app back on these. */
-const TAB_ROOTS = ["/", "/directory", "/jobs", "/profile"];
-
+/** Main bottom-nav tabs only — nested routes (e.g. /jobs/[id]) keep the back button. */
 function isTabRoot(pathname: string) {
-  if (pathname === "/") return true;
-  return TAB_ROOTS.some(
-    (root) => root !== "/" && (pathname === root || pathname.startsWith(root + "/"))
-  );
+  if (pathname === "/" || pathname === "") return true;
+  const exact = ["/directory", "/jobs", "/profile"];
+  return exact.some((root) => pathname === root || pathname === root + "/");
 }
 
-/** When history is empty or external, land somewhere sensible. */
 function fallbackFor(pathname: string): string {
+  if (pathname.startsWith("/jobs/")) return "/jobs";
   if (pathname.startsWith("/worker/")) return "/directory";
   if (pathname.startsWith("/request/")) return "/jobs";
   if (pathname.startsWith("/post-job")) return "/";
