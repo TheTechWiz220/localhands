@@ -2,6 +2,7 @@ const fs = require("fs");
 const zlib = require("zlib");
 const path = require("path");
 const https = require("https");
+const patchJobsFeeSplit = require("./patch-jobs-fee");
 
 function inflateWrite(b64, outRel) {
   const src = zlib.inflateSync(Buffer.from(b64.trim(), "base64")).toString("utf8");
@@ -39,7 +40,6 @@ function httpGet(url) {
 }
 
 function patchJobsWhatsApp(text) {
-  // Pass jobId so button can fetch contact via /api/job-contact (bypasses RLS safely)
   if (!text.includes("jobId={job.id}")) {
     text = text.replace(
       `<JobWhatsAppButton\n                  jobStatus={job.status}\n                  paymentStatus={payStatus}\n                  otherPhone={job.other_whatsapp}\n                  jobTitle={job.title}\n                />`,
@@ -52,8 +52,7 @@ function patchJobsWhatsApp(text) {
   if (!text.includes(marker)) return text;
 
   text = text.replace(
-    /let client_wa: string \| null = null;\n    let worker_wa: string \| null = null;[\s\S]*?const other_whatsapp = uid === j\.client_id \? worker_wa : client_wa;/
-    ,
+    /let client_wa: string \| null = null;\n    let worker_wa: string \| null = null;[\s\S]*?const other_whatsapp = uid === j\.client_id \? worker_wa : client_wa;/,
     `let other_whatsapp: string | null = null;\n\n    const otherId = uid === j.client_id ? j.worker_id : j.client_id;\n    if (otherId) {\n      const { data: other } = await supabase\n        .from("job_participant_profiles")\n        .select("full_name, whatsapp_phone")\n        .eq("id", otherId)\n        .maybeSingle();\n      if (other?.full_name) {\n        if (uid === j.client_id) worker_name = other.full_name;\n        else client_name = other.full_name;\n      }\n      if (other?.whatsapp_phone) other_whatsapp = other.whatsapp_phone;\n    }\n    if (otherId && (!other_whatsapp || client_name === "Client" || worker_name === "Worker")) {\n      const { data: fallback } = await supabase\n        .from("profiles")\n        .select("full_name, whatsapp_phone")\n        .eq("id", otherId)\n        .maybeSingle();\n      if (fallback?.full_name) {\n        if (uid === j.client_id) worker_name = fallback.full_name;\n        else client_name = fallback.full_name;\n      }\n      if (fallback?.whatsapp_phone) other_whatsapp = fallback.whatsapp_phone;\n    }`
   );
 
@@ -65,7 +64,6 @@ function patchJobsWhatsApp(text) {
 }
 
 function patchJobsClickable(text) {
-  // Open jobs: make title + description navigate to detail; keep Claim button
   if (!text.includes("/jobs/${job.id}") && !text.includes("`/jobs/${job.id}`")) {
     text = text.replace(
       `<div className="flex items-start justify-between gap-2">\n                  <div>\n                    <h3 className="font-semibold">{job.title}</h3>\n                    <p className="text-xs text-gray-500 mt-0.5">\n                      {job.location_area} · Open listing\n                    </p>\n                  </div>\n                  {statusBadge(job.status === "pending" ? "open" : job.status)}\n                </div>\n                <p className="text-sm text-gray-600">{job.description}</p>`,
@@ -104,6 +102,7 @@ async function main() {
     let text = await httpGet(jobsUrl);
     text = patchJobsWhatsApp(text);
     text = patchJobsClickable(text);
+    text = patchJobsFeeSplit(text);
     const out = path.join(__dirname, "..", "app/jobs/page.tsx");
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, text);
@@ -115,7 +114,9 @@ async function main() {
       "wa",
       text.includes("job_participant_profiles"),
       "detailLink",
-      text.includes("/jobs/${job.id}")
+      text.includes("/jobs/${job.id}"),
+      "clientPays",
+      text.includes("fees.clientPays")
     );
   } catch (e) {
     console.warn("restore jobs failed", e.message);
