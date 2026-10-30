@@ -68,3 +68,13 @@ try {
 } catch (e) {
   console.warn("workerVerifyPush skipped", e.message);
 }
+
+// Clickable jobs → /admin/jobs/[id]
+try {
+  let adminContent = fs.readFileSync(adminPath, "utf8");
+  adminContent = require("./inject-admin-job-links")(adminContent);
+  fs.writeFileSync(adminPath, adminContent);
+  console.log("adminJobLinks", adminContent.includes("/admin/jobs/"));
+} catch (e) {
+  console.warn("inject-admin-job-links skipped", e.message);
+}
