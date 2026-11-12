@@ -19,7 +19,6 @@ import {
   formatGmd,
   PLATFORM_FEE_PERCENT,
   CLIENT_FEE_PERCENT,
-  WORKER_FEE_PERCENT,
 } from "@/lib/pricing";
 import { ClientTrustLine } from "@/components/client-trust-line";
 
@@ -295,12 +294,12 @@ export default function JobDetailPage() {
             {CLIENT_FEE_PERCENT}%)
           </p>
           <p className="text-sm text-green-800">
-            Worker receives <strong>{formatGmd(fees.workerGets)}</strong> (−
-            {WORKER_FEE_PERCENT}%)
+            Worker receives <strong>{formatGmd(fees.workerGets)}</strong> (full
+            budget)
           </p>
           <p className="text-xs text-gray-600">
-            LocalHands total {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)}) —
-            split {CLIENT_FEE_PERCENT}% client / {WORKER_FEE_PERCENT}% worker
+            LocalHands pilot fee {PLATFORM_FEE_PERCENT}% ({formatGmd(fees.fee)})
+            — charged to the client only
           </p>
           {job.status === "countered" && job.counter_amount != null && (
             <p className="text-sm text-amber-800 pt-2 border-t border-green-100 mt-2">
@@ -334,7 +333,7 @@ export default function JobDetailPage() {
             <>
               <Check className="h-4 w-4 mr-1" />
               Claim this job
-              {fees ? ` · get ${formatGmd(fees.workerGets)}` : ""}
+              {fees ? ` \u00b7 get ${formatGmd(fees.workerGets)}` : ""}
             </>
           )}
         </Button>
