@@ -19,7 +19,6 @@ import {
   formatGmd,
   PLATFORM_FEE_PERCENT,
   CLIENT_FEE_PERCENT,
-  WORKER_FEE_PERCENT,
 } from "@/lib/pricing";
 
 type JobRow = {
@@ -238,11 +237,12 @@ export default function AdminJobDetailPage() {
             {CLIENT_FEE_PERCENT}%)
           </p>
           <p className="text-sm">
-            Worker receives: <strong>{formatGmd(fees.workerGets)}</strong> (−
-            {WORKER_FEE_PERCENT}%)
+            Worker receives: <strong>{formatGmd(fees.workerGets)}</strong> (full
+            budget)
           </p>
           <p className="text-xs text-gray-600">
-            Platform total {PLATFORM_FEE_PERCENT}%: {formatGmd(fees.fee)}
+            Pilot fee {PLATFORM_FEE_PERCENT}%: {formatGmd(fees.fee)} — client
+            only
           </p>
           {job.counter_amount != null && (
             <p className="text-sm text-amber-800 pt-2 border-t border-green-100 mt-2">
@@ -276,7 +276,8 @@ export default function AdminJobDetailPage() {
             <Briefcase className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-medium">
-                Worker: {worker?.full_name || (job.worker_id ? "—" : "Unclaimed")}
+                Worker:{" "}
+                {worker?.full_name || (job.worker_id ? "—" : "Unclaimed")}
               </p>
               {worker && (
                 <>
