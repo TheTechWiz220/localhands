@@ -9,7 +9,6 @@ import {
   formatGmd,
   PLATFORM_FEE_PERCENT,
   CLIENT_FEE_PERCENT,
-  WORKER_FEE_PERCENT,
 } from "@/lib/pricing";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
@@ -264,26 +263,28 @@ export default function PostJobPage() {
             className="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-green-600"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Agreed job price. You pay this plus 5% platform fee; the worker
-            receives this minus 5%.
+            Agreed amount the worker receives. You pay this plus a{" "}
+            {CLIENT_FEE_PERCENT}% platform fee (pilot).
           </p>
         </div>
 
         {fees && (
           <div className="rounded-lg bg-green-50 border border-green-100 p-3 text-sm space-y-1">
-            <p className="font-medium text-green-900">Price breakdown</p>
+            <p className="font-medium text-green-900">Price breakdown (pilot)</p>
             <p className="text-gray-700">
               Job budget: {formatGmd(fees.amount)}
             </p>
             <p className="text-gray-700">
-              You pay: <strong>{formatGmd(fees.clientPays)}</strong> (+{CLIENT_FEE_PERCENT}%)
+              You pay: <strong>{formatGmd(fees.clientPays)}</strong> (+
+              {CLIENT_FEE_PERCENT}%)
             </p>
             <p className="text-gray-700">
-              Worker receives: <strong>{formatGmd(fees.workerGets)}</strong> (−{WORKER_FEE_PERCENT}%)
+              Worker receives: <strong>{formatGmd(fees.workerGets)}</strong>{" "}
+              (full budget)
             </p>
             <p className="text-gray-500 text-xs">
-              LocalHands total fee ({PLATFORM_FEE_PERCENT}%): {formatGmd(fees.fee)} —
-              split evenly between client and worker
+              LocalHands pilot fee ({PLATFORM_FEE_PERCENT}%):{" "}
+              {formatGmd(fees.fee)} — charged to the client only
             </p>
           </div>
         )}
