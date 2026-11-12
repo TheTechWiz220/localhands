@@ -1,13 +1,16 @@
 /** LocalHands platform pricing (Gambia MVP)
  *
- * Split fee on the agreed job budget / offer:
+ * PILOT (locked): 5% total, charged to the client only.
  * - Client pays budget + 5%
- * - Worker receives budget − 5%
- * - LocalHands keeps 10% of budget overall
+ * - Worker receives 100% of the agreed budget
+ * - LocalHands keeps 5% of budget
+ *
+ * Applies to all marketplace jobs during the pilot window.
+ * Company subscription / placement fees are separate commercial terms.
  */
-export const PLATFORM_FEE_PERCENT = 10;
+export const PLATFORM_FEE_PERCENT = 5;
 export const CLIENT_FEE_PERCENT = 5;
-export const WORKER_FEE_PERCENT = 5;
+export const WORKER_FEE_PERCENT = 0;
 
 export function calcFees(budget: number) {
   const amount = Math.max(0, Number(budget) || 0);
@@ -17,15 +20,15 @@ export function calcFees(budget: number) {
   const clientPays = amount + clientFee;
   const workerGets = amount - workerFee;
   return {
-    /** Agreed job budget / offer (stored on job_requests.budget) */
+    /** Agreed job budget (stored on job_requests.budget) */
     amount,
-    /** Total platform take (clientFee + workerFee) */
+    /** Total platform take */
     fee,
     clientFee,
     workerFee,
     /** What the client should send (Wave / record payment) */
     clientPays,
-    /** What the worker should receive after fee */
+    /** What the worker receives (full budget under pilot) */
     workerGets,
     feePercent: PLATFORM_FEE_PERCENT,
   };

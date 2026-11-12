@@ -1,4 +1,4 @@
-/** Fee copy on restored jobs page: client pays budget+5%, worker gets budget-5%. */
+/** Fee copy on restored jobs page: pilot 5% client-only. */
 module.exports = function patchJobsFeeSplit(text) {
   text = text.replace(/amount: fees\.amount,/g, "amount: fees.clientPays,");
   text = text.replace(/amount: fees\.clientPays,/g, "amount: fees.clientPays,");
@@ -19,15 +19,15 @@ module.exports = function patchJobsFeeSplit(text) {
 
   text = text.replace(
     /Current offer: \{formatGmd\(fees\.amount\)\} \(worker gets/g,
-    "Budget {formatGmd(fees.amount)} · client pays {formatGmd(fees.clientPays)} · worker gets"
+    "Budget {formatGmd(fees.amount)} \u00b7 client pays {formatGmd(fees.clientPays)} \u00b7 worker gets"
   );
   text = text.replace(
-    /Offer \{formatGmd\(fees\.amount\)\} · client pays \{formatGmd\(fees\.clientPays\)\} · worker gets/g,
-    "Budget {formatGmd(fees.amount)} · client pays {formatGmd(fees.clientPays)} · worker gets"
+    /Offer \{formatGmd\(fees\.amount\)\} \u00b7 client pays \{formatGmd\(fees\.clientPays\)\} \u00b7 worker gets/g,
+    "Budget {formatGmd(fees.amount)} \u00b7 client pays {formatGmd(fees.clientPays)} \u00b7 worker gets"
   );
   text = text.replace(
-    /Budget \{formatGmd\(fees\.amount\)\} · client pays \{formatGmd\(fees\.clientPays\)\} · worker gets/g,
-    "Budget {formatGmd(fees.amount)} · client pays {formatGmd(fees.clientPays)} · worker gets"
+    /Budget \{formatGmd\(fees\.amount\)\} \u00b7 client pays \{formatGmd\(fees\.clientPays\)\} \u00b7 worker gets/g,
+    "Budget {formatGmd(fees.amount)} \u00b7 client pays {formatGmd(fees.clientPays)} \u00b7 worker gets"
   );
 
   return text;
