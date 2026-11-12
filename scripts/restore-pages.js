@@ -91,6 +91,28 @@ async function main() {
   const b = fs.readFileSync(path.join(__dirname, "pages-apply-b.b64"), "utf8").trim();
   inflateWrite(a + b, "app/apply/page.tsx");
 
+  // Institute cohort on apply form
+  try {
+    const applyPath = path.join(__dirname, "..", "app/apply/page.tsx");
+    let applyText = fs.readFileSync(applyPath, "utf8");
+    applyText = require("./patch-apply-cohort")(applyText);
+    fs.writeFileSync(applyPath, applyText);
+    console.log("applyCohort", applyText.includes("COHORT_OPTIONS"));
+  } catch (e) {
+    console.warn("patch-apply-cohort skipped", e.message);
+  }
+
+  // Institute cohort on worker public profile
+  try {
+    const workerPath = path.join(__dirname, "..", "app/worker/[id]/page.tsx");
+    let workerText = fs.readFileSync(workerPath, "utf8");
+    workerText = require("./patch-worker-cohort")(workerText);
+    fs.writeFileSync(workerPath, workerText);
+    console.log("workerCohort", workerText.includes("cohortLabel"));
+  } catch (e) {
+    console.warn("patch-worker-cohort skipped", e.message);
+  }
+
   const p0 = fs.readFileSync(path.join(__dirname, "pages-profile-0.zhex"), "utf8");
   const p1 = fs.readFileSync(path.join(__dirname, "pages-profile-1.zhex"), "utf8");
   const p2 = fs.readFileSync(path.join(__dirname, "pages-profile-2.zhex"), "utf8");
