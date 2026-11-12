@@ -78,3 +78,13 @@ try {
 } catch (e) {
   console.warn("inject-admin-job-links skipped", e.message);
 }
+
+// Institute cohort_source on pending workers
+try {
+  let adminContent = fs.readFileSync(adminPath, "utf8");
+  adminContent = require("./inject-admin-cohort")(adminContent);
+  fs.writeFileSync(adminPath, adminContent);
+  console.log("adminCohort", adminContent.includes("cohort_source"));
+} catch (e) {
+  console.warn("inject-admin-cohort skipped", e.message);
+}
