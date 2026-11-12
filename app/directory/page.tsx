@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { AREA_FILTERS } from "@/lib/skills";
+import { cohortLabel } from "@/lib/cohort";
 
 type Worker = {
   id: string;
@@ -20,6 +21,7 @@ type Worker = {
   joined_at: string | null;
   id_verified?: boolean;
   verification_status: string;
+  cohort_source: string | null;
 };
 
 export default function DirectoryPage() {
@@ -34,11 +36,10 @@ export default function DirectoryPage() {
     async function load() {
       setLoading(true);
 
-      // Show verified + suspended so the public can see suspension status
       const { data } = await supabase
         .from("public_worker_profiles")
         .select(
-          "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at, id_verified"
+          "id, full_name, location_area, bio, verification_status, availability, avatar_url, created_at, id_verified, cohort_source"
         )
         .in("verification_status", ["verified", "suspended"])
         .order("created_at", { ascending: false });
@@ -93,11 +94,11 @@ export default function DirectoryPage() {
             jobs_done: count || 0,
             joined_at: p.created_at || null,
             verification_status: p.verification_status || "verified",
+            cohort_source: p.cohort_source || null,
           } as Worker;
         })
       );
 
-      // Verified first, suspended at the bottom
       withSkills.sort((a, b) => {
         if (a.verification_status === b.verification_status) return 0;
         if (a.verification_status === "verified") return -1;
@@ -123,7 +124,10 @@ export default function DirectoryPage() {
       const inName = w.full_name.toLowerCase().includes(q);
       const inSkill = w.skills.some((s) => s.toLowerCase().includes(q));
       const inBio = w.bio.toLowerCase().includes(q);
-      return inName || inSkill || inBio;
+      const inCohort = (cohortLabel(w.cohort_source) || "")
+        .toLowerCase()
+        .includes(q);
+      return inName || inSkill || inBio || inCohort;
     });
   }, [workers, query, area]);
 
@@ -239,6 +243,11 @@ export default function DirectoryPage() {
                             >
                               In-person
                             </Badge>
+                            {cohortLabel(w.cohort_source) && (
+                              <Badge className="text-[10px] px-1.5 py-0 bg-green-100 text-green-800 hover:bg-green-100">
+                                {cohortLabel(w.cohort_source)}
+                              </Badge>
+                            )}
                           </>
                         )}
                       </div>
