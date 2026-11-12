@@ -4,6 +4,7 @@ import { Check, X, Loader2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProofOfWorkBlock } from "@/components/admin/ProofOfWorkBlock";
+import { cohortLabel } from "@/lib/cohort";
 
 export type PendingWorker = {
   id: string;
@@ -16,6 +17,7 @@ export type PendingWorker = {
   email: string | null;
   skills: string[];
   proof_urls: string[];
+  cohort_source?: string | null;
 };
 
 type Props = {
@@ -52,7 +54,14 @@ export function PendingWorkerCard({
         )}
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold">{w.full_name || "Unnamed worker"}</h3>
-          <p className="text-sm text-gray-500">{w.location_area || "Area not set"}</p>
+          <p className="text-sm text-gray-500">
+            {w.location_area || "Area not set"}
+          </p>
+          {cohortLabel(w.cohort_source) && (
+            <Badge className="mt-1 text-[10px] bg-green-100 text-green-800 hover:bg-green-100">
+              {cohortLabel(w.cohort_source)}
+            </Badge>
+          )}
           {w.whatsapp_phone ? (
             <p className="text-xs text-green-700 mt-0.5 flex items-center gap-1">
               <Phone className="h-3 w-3 shrink-0" />
@@ -91,42 +100,41 @@ export function PendingWorkerCard({
 
       <ProofOfWorkBlock urls={w.proof_urls} />
 
-      <label className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 cursor-pointer">
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
         <input
           type="checkbox"
           checked={idChecked}
           onChange={(e) => onIdCheck(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+          className="rounded border-gray-300"
         />
-        <span className="text-xs text-gray-700 leading-snug">
-          <strong>ID verified in person</strong> — I checked a valid national ID
-          or passport and the photo matches this applicant. Worker is 18+.
-        </span>
+        ID verified in person
       </label>
 
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2">
         <Button
           size="sm"
-          className="flex-1"
           disabled={acting || !idChecked}
           onClick={onApprove}
+          className="flex-1"
         >
           {acting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              <Check className="h-4 w-4 mr-1" /> Approve
+              <Check className="h-4 w-4 mr-1" />
+              Approve
             </>
           )}
         </Button>
         <Button
           size="sm"
-          variant="destructive"
-          className="flex-1"
+          variant="outline"
           disabled={acting}
           onClick={onReject}
+          className="flex-1"
         >
-          <X className="h-4 w-4 mr-1" /> Reject
+          <X className="h-4 w-4 mr-1" />
+          Reject
         </Button>
       </div>
     </div>
